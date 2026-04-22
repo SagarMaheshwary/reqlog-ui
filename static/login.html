@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reqlog · login</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0d0f12;
+        --surface: #141720;
+        --border: #252a38;
+        --accent: #4ade80;
+        --text: #e2e8f0;
+        --muted: #4b5563;
+        --danger: #f87171;
+        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+        --font-ui: "DM Sans", "Segoe UI", sans-serif;
+      }
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-ui);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 40px 36px;
+        width: 100%;
+        max-width: 380px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .logo {
+        font-family: var(--font-mono);
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--accent);
+        letter-spacing: -0.5px;
+        margin-bottom: 1rem;
+      }
+      .logo span {
+        color: var(--muted);
+      }
+      h2 {
+        font-size: 0.9rem;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+      input[type="password"] {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s;
+        letter-spacing: 0.1em;
+      }
+      input[type="password"]:focus {
+        border-color: var(--accent);
+      }
+      .btn {
+        width: 100%;
+        background: var(--accent);
+        color: #0d0f12;
+        border: none;
+        border-radius: 6px;
+        padding: 11px;
+        font-family: var(--font-ui);
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: opacity 0.15s;
+      }
+      .btn:hover {
+        opacity: 0.88;
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .error-msg {
+        font-size: 0.8rem;
+        color: var(--danger);
+        text-align: center;
+        min-height: 1.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div>
+        <div class="logo">req<span>log</span></div>
+        <h2>Enter your API key to continue</h2>
+      </div>
+      <div>
+        <label for="key">API Key</label>
+        <input
+          id="key"
+          type="password"
+          placeholder="••••••••••••••••"
+          autocomplete="current-password"
+        />
+      </div>
+      <button class="btn" id="btn-login">Continue</button>
+      <div class="error-msg" id="error"></div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const keyInput = document.getElementById("key");
+        const btn = document.getElementById("btn-login");
+        const errorEl = document.getElementById("error");
+
+        async function login() {
+          const key = keyInput.value.trim();
+          if (!key) {
+            errorEl.textContent = "Please enter your API key.";
+            return;
+          }
+
+          btn.disabled = true;
+          errorEl.textContent = "";
+
+          try {
+            const res = await fetch("/api/auth/token", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ key }),
+            });
+
+            if (!res.ok) {
+              errorEl.textContent = "Invalid API key. Please try again.";
+              btn.disabled = false;
+              keyInput.select();
+              return;
+            }
+
+            const { token } = await res.json();
+            sessionStorage.setItem("reqlog_token", token);
+
+            // Redirect to main app, preserving any ?next= param
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get("next") || "/";
+            window.location.href = next;
+          } catch (err) {
+            errorEl.textContent = "Network error. Is the server running?";
+            btn.disabled = false;
+          }
+        }
+
+        btn.addEventListener("click", login);
+        keyInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") login();
+        });
+
+        keyInput.focus();
+      });
+    </script>
+  </body>
+</html>

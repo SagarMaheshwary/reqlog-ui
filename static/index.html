@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>reqlog</title>
+    <style>
+      /* ── reset & tokens ──────────────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d0f12;
+        --surface: #141720;
+        --surface2: #1c2030;
+        --border: #252a38;
+        --accent: #4ade80; /* lime green — terminal-y */
+        --accent2: #38bdf8; /* sky blue for stream mode */
+        --muted: #4b5563;
+        --text: #e2e8f0;
+        --text-dim: #64748b;
+        --danger: #f87171;
+        --warn: #fbbf24;
+        --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+        --font-ui: "DM Sans", "Segoe UI", sans-serif;
+        --radius: 6px;
+        --sidebar-w: 280px;
+      }
+
+      html,
+      body {
+        height: 100%;
+        background: var(--bg);
+        color: var(--text);
+      }
+      body {
+        font-family: var(--font-ui);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* ── top bar ─────────────────────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 20px;
+        height: 52px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
+        flex-shrink: 0;
+      }
+      .logo {
+        font-family: var(--font-mono);
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        color: var(--accent);
+      }
+      .logo span {
+        color: var(--text-dim);
+      }
+
+      #search-wrap {
+        flex: 1;
+        display: flex;
+        gap: 8px;
+        max-width: 640px;
+      }
+      #q {
+        flex: 1;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 7px 12px;
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      #q:focus {
+        border-color: var(--accent);
+      }
+      #q::placeholder {
+        color: var(--muted);
+      }
+
+      .btn {
+        cursor: pointer;
+        border: none;
+        border-radius: var(--radius);
+        font-family: var(--font-ui);
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 7px 16px;
+        transition:
+          opacity 0.15s,
+          background 0.15s;
+        white-space: nowrap;
+      }
+      .btn:hover {
+        opacity: 0.85;
+      }
+      .btn-primary {
+        background: var(--accent);
+        color: #0d0f12;
+      }
+      .btn-stream {
+        background: var(--accent2);
+        color: #0d0f12;
+      }
+      .btn-stop {
+        background: var(--danger);
+        color: #fff;
+      }
+      .btn-clear {
+        background: var(--surface2);
+        color: var(--text-dim);
+        border: 1px solid var(--border);
+      }
+      .btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      .status-badge {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        padding: 3px 10px;
+        border-radius: 99px;
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+      }
+      .status-badge.live {
+        border-color: var(--accent2);
+        color: var(--accent2);
+      }
+      .status-badge.error {
+        border-color: var(--danger);
+        color: var(--danger);
+      }
+
+      /* ── layout ──────────────────────────────────────────────────────────── */
+      .workspace {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+      }
+
+      /* ── sidebar ─────────────────────────────────────────────────────────── */
+      aside {
+        width: var(--sidebar-w);
+        flex-shrink: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        overflow-y: auto;
+        padding: 16px 14px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 7px 10px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s;
+        width: 100%;
+      }
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+      select option {
+        background: var(--surface2);
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 0;
+      }
+      .toggle-label {
+        font-size: 0.82rem;
+        color: var(--text);
+      }
+
+      /* pill toggle */
+      .toggle {
+        position: relative;
+        width: 36px;
+        height: 20px;
+        cursor: pointer;
+      }
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        inset: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        transition: background 0.2s;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 2px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--muted);
+        border-radius: 50%;
+        transition:
+          transform 0.2s,
+          background 0.2s;
+      }
+      .toggle input:checked + .slider {
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+        border-color: var(--accent);
+      }
+      .toggle input:checked + .slider::before {
+        transform: translate(16px, -50%);
+        background: var(--accent);
+      }
+
+      .sidebar-divider {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 2px 0;
+      }
+
+      /* ── output pane ─────────────────────────────────────────────────────── */
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--bg);
+      }
+
+      .output-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        background: var(--surface);
+      }
+      .line-count {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text-dim);
+        margin-left: auto;
+      }
+
+      #output {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px 20px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        line-height: 1.7;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      #output::-webkit-scrollbar {
+        width: 6px;
+      }
+      #output::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #output::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      .log-line {
+        display: block;
+        padding: 1px 0;
+        border-bottom: 1px solid transparent;
+        animation: fadein 0.12s ease;
+      }
+      @keyframes fadein {
+        from {
+          opacity: 0;
+          transform: translateY(2px);
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: 10px;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        opacity: 0.5;
+        user-select: none;
+      }
+      .placeholder .big {
+        font-size: 2.5rem;
+      }
+
+      /* ── ANSI colour map ─────────────────────────────────────────────────── */
+      /* These classes are injected by the JS ANSI parser */
+      .ansi-bold {
+        font-weight: 700;
+      }
+      .ansi-dim {
+        opacity: 0.55;
+      }
+      .ansi-italic {
+        font-style: italic;
+      }
+      .ansi-underline {
+        text-decoration: underline;
+      }
+      .ansi-blink {
+        animation: blink 1s step-start infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .ansi-strikethrough {
+        text-decoration: line-through;
+      }
+
+      /* Standard 16 foreground — tuned to match reqlog's Colorizer */
+      /* fg-1=red fg-2=green fg-3=yellow fg-6=cyan are used by colorizer helpers */
+      .fg-0 {
+        color: #1e1e1e;
+      }
+      .fg-1 {
+        color: #e06c75;
+      }
+      .fg-2 {
+        color: #98c379;
+      }
+      .fg-3 {
+        color: #e5c07b;
+      }
+      .fg-4 {
+        color: #61afef;
+      }
+      .fg-5 {
+        color: #c678dd;
+      }
+      .fg-6 {
+        color: #2dd4bf;
+      }
+      .fg-7 {
+        color: #dcdfe4;
+      }
+      .fg-8 {
+        color: #5c6370;
+      }
+      .fg-9 {
+        color: #f87171;
+      }
+      .fg-10 {
+        color: #86efac;
+      }
+      .fg-11 {
+        color: #fde68a;
+      }
+      .fg-12 {
+        color: #93c5fd;
+      }
+      .fg-13 {
+        color: #d8b4fe;
+      }
+      .fg-14 {
+        color: #6ee7b7;
+      }
+      .fg-15 {
+        color: #f9fafb;
+      }
+
+      /* Standard 16 background */
+      .bg-0 {
+        background: #1e1e1e;
+      }
+      .bg-1 {
+        background: #7f1d1d;
+      }
+      .bg-2 {
+        background: #14532d;
+      }
+      .bg-3 {
+        background: #713f12;
+      }
+      .bg-4 {
+        background: #1e3a5f;
+      }
+      .bg-5 {
+        background: #581c87;
+      }
+      .bg-6 {
+        background: #134e4a;
+      }
+      .bg-7 {
+        background: #374151;
+      }
+      .bg-8 {
+        background: #1f2937;
+      }
+      .bg-9 {
+        background: #991b1b;
+      }
+      .bg-10 {
+        background: #166534;
+      }
+      .bg-11 {
+        background: #92400e;
+      }
+      .bg-12 {
+        background: #1e40af;
+      }
+      .bg-13 {
+        background: #6b21a8;
+      }
+      .bg-14 {
+        background: #065f46;
+      }
+      .bg-15 {
+        background: #111827;
+      }
+
+      /* ── scrollbottom btn ────────────────────────────────────────────────── */
+      #scroll-btn {
+        position: absolute;
+        bottom: 18px;
+        right: 22px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 1rem;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      #scroll-btn.visible {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">req<span>log</span></div>
+      <div id="search-wrap">
+        <input
+          id="q"
+          type="text"
+          placeholder="search term / value…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn btn-primary" id="btn-run">Search</button>
+        <button class="btn btn-stream" id="btn-stream">Follow</button>
+        <button class="btn btn-stop" id="btn-stop" style="display: none">
+          Stop
+        </button>
+      </div>
+      <span class="status-badge" id="status-badge">idle</span>
+    </header>
+
+    <div class="workspace">
+      <aside>
+        <div class="field-group">
+          <label>Directory</label>
+          <input id="opt-dir" type="text" value="./logs" placeholder="./logs" />
+        </div>
+
+        <div class="field-group">
+          <label>Source</label>
+          <select id="opt-source">
+            <option value="file">file</option>
+            <option value="docker">docker</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label
+            >Service filter
+            <span style="font-weight: 400; text-transform: none"
+              >(comma-sep)</span
+            ></label
+          >
+          <input
+            id="opt-service"
+            type="text"
+            placeholder="order-service,inventory-service"
+          />
+        </div>
+
+        <div class="field-group">
+          <label>Field key</label>
+          <input id="opt-key" type="text" placeholder="request_id, trace_id…" />
+        </div>
+
+        <div class="field-group">
+          <label>Since</label>
+          <input id="opt-since" type="text" placeholder="5m, 1h, 24h…" />
+        </div>
+
+        <div class="field-group">
+          <label>Limit (newest N)</label>
+          <input
+            id="opt-limit"
+            type="number"
+            min="0"
+            value="0"
+            placeholder="0 = unlimited"
+          />
+        </div>
+
+        <hr class="sidebar-divider" />
+
+        <div class="toggle-row">
+          <span class="toggle-label">Ignore case</span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-ignore-case" /><span
+              class="slider"
+            ></span
+          ></label>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">JSON mode</span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-json" /><span class="slider"></span
+          ></label>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Recursive</span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-recursive" checked /><span
+              class="slider"
+            ></span
+          ></label>
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label">Auto-scroll</span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-autoscroll" checked /><span
+              class="slider"
+            ></span
+          ></label>
+        </div>
+      </aside>
+
+      <main style="position: relative">
+        <div class="output-toolbar">
+          <button class="btn btn-clear" id="btn-clear">Clear</button>
+          <span class="line-count" id="line-count">0 lines</span>
+        </div>
+
+        <div id="output">
+          <div class="placeholder">
+            <span class="big">⌕</span>
+            <span
+              >Enter a search term and press <kbd>Search</kbd> or
+              <kbd>Follow</kbd></span
+            >
+          </div>
+        </div>
+
+        <button id="scroll-btn" title="Scroll to bottom">↓</button>
+      </main>
+    </div>
+    <script>
+      const API_TOKEN = sessionStorage.getItem("reqlog_token");
+      if (!API_TOKEN) {
+        window.location.href =
+          "/login?next=" +
+          encodeURIComponent(window.location.pathname + window.location.search);
+      }
+
+      // Authenticated fetch wrapper — injects Bearer token automatically.
+      async function authFetch(url, opts = {}) {
+        opts.headers = {
+          ...(opts.headers || {}),
+          Authorization: "Bearer " + API_TOKEN,
+        };
+        const res = await fetch(url, opts);
+        if (res.status === 401) {
+          // Token expired or revoked — send back to login.
+          sessionStorage.removeItem("reqlog_token");
+          window.location.href = "/login";
+        }
+        return res;
+      }
+
+      function logout() {
+        sessionStorage.removeItem("reqlog_token");
+        window.location.href = "/login";
+      }
+
+      // ── ANSI → HTML parser ───────────────────────────────────────────────────
+      // Handles SGR sequences (colours, bold, dim, italic, underline, etc.).
+      // 256-colour and truecolor (38;2;r;g;b) are handled via inline styles.
+      const ansiToHtml = (() => {
+        const ESC = "\x1b[";
+
+        // xterm 256-colour palette
+        // PALETTE overrides let us pin reqlog's exact indices to their true values
+        // rather than relying solely on the cube formula (which is correct but this
+        // makes the mapping explicit and easy to adjust).
+        const PALETTE = {
+          67: "rgb(95,135,175)", // muted blue
+          68: "rgb(95,135,215)", // steel blue
+          69: "rgb(95,135,255)", // soft blue
+          108: "rgb(135,175,135)", // desaturated cyan-green
+          109: "rgb(135,175,175)", // soft cyan
+          110: "rgb(135,175,215)", // teal
+          114: "rgb(135,215,135)", // soft green
+          139: "rgb(175,135,175)", // dusty purple
+          140: "rgb(175,135,215)", // lavender
+          141: "rgb(175,135,255)", // soft violet
+          142: "rgb(175,215,95)", // olive green
+          143: "rgb(175,215,135)", // moss green
+          166: "rgb(215,95,0)", // warm orange-brown
+          173: "rgb(215,135,95)", // muted orange
+          174: "rgb(215,135,135)", // soft orange
+          175: "rgb(215,135,175)", // pink-purple
+          176: "rgb(215,135,215)", // magenta soft
+          179: "rgb(215,175,95)", // sand
+          180: "rgb(215,175,135)", // beige
+          181: "rgb(215,175,175)", // light tan
+          245: "rgb(148,148,148)", // tsColor  — timestamp gray
+          252: "rgb(208,208,208)", // msgColor — message near-white
+        };
+
+        function escape(s) {
+          return s
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+        }
+
+        return function convert(raw) {
+          // Strip carriage returns
+          raw = raw.replace(/\r/g, "");
+
+          const parts = raw.split(/\x1b\[/);
+          let html = "";
+          let openSpans = 0;
+
+          for (let i = 0; i < parts.length; i++) {
+            if (i === 0) {
+              html += escape(parts[i]);
+              continue;
+            }
+
+            const m = parts[i].match(/^([0-9;]*)m([\s\S]*)/);
+            if (!m) {
+              html += escape("\x1b[" + parts[i]);
+              continue;
+            }
+
+            const [, codes, text] = m;
+            const nums = codes === "" ? [0] : codes.split(";").map(Number);
+
+            let classes = [];
+            let styles = [];
+            let skip = 0;
+
+            for (let j = 0; j < nums.length; j++) {
+              if (skip > 0) {
+                skip--;
+                continue;
+              }
+              const n = nums[j];
+              if (n === 0) {
+                // reset – close all open spans
+                html += "</span>".repeat(openSpans);
+                openSpans = 0;
+                classes = [];
+                styles = [];
+                continue;
+              }
+              // Attributes
+              if (n === 1) {
+                classes.push("ansi-bold");
+              } else if (n === 2) {
+                classes.push("ansi-dim");
+              } else if (n === 3) {
+                classes.push("ansi-italic");
+              } else if (n === 4) {
+                classes.push("ansi-underline");
+              } else if (n === 5) {
+                classes.push("ansi-blink");
+              } else if (n === 9) {
+                classes.push("ansi-strikethrough");
+              }
+              // Standard FG 30-37, 90-97
+              else if (n >= 30 && n <= 37) {
+                classes.push("fg-" + (n - 30));
+              } else if (n >= 90 && n <= 97) {
+                classes.push("fg-" + (n - 90 + 8));
+              }
+              // Standard BG 40-47, 100-107
+              else if (n >= 40 && n <= 47) {
+                classes.push("bg-" + (n - 40));
+              } else if (n >= 100 && n <= 107) {
+                classes.push("bg-" + (n - 100 + 8));
+              }
+              // 256-colour FG: 38;5;n
+              else if (n === 38 && nums[j + 1] === 5) {
+                const idx = nums[j + 2];
+                skip = 2;
+                styles.push("color:" + xterm256(idx));
+              }
+              // 256-colour BG: 48;5;n
+              else if (n === 48 && nums[j + 1] === 5) {
+                const idx = nums[j + 2];
+                skip = 2;
+                styles.push("background:" + xterm256(idx));
+              }
+              // Truecolor FG: 38;2;r;g;b
+              else if (n === 38 && nums[j + 1] === 2) {
+                styles.push(
+                  `color:rgb(${nums[j + 2]},${nums[j + 3]},${nums[j + 4]})`,
+                );
+                skip = 4;
+              }
+              // Truecolor BG: 48;2;r;g;b
+              else if (n === 48 && nums[j + 1] === 2) {
+                styles.push(
+                  `background:rgb(${nums[j + 2]},${nums[j + 3]},${nums[j + 4]})`,
+                );
+                skip = 4;
+              }
+            }
+
+            if (classes.length || styles.length) {
+              const cls = classes.length ? ` class="${classes.join(" ")}"` : "";
+              const sty = styles.length ? ` style="${styles.join(";")}"` : "";
+              html += `<span${cls}${sty}>`;
+              openSpans++;
+            }
+
+            html += escape(text);
+          }
+
+          html += "</span>".repeat(openSpans);
+          return html;
+        };
+
+        function xterm256(n) {
+          if (PALETTE[n]) return PALETTE[n];
+          if (n < 16) {
+            const c = [
+              "#000000",
+              "#800000",
+              "#008000",
+              "#808000",
+              "#000080",
+              "#800080",
+              "#008080",
+              "#c0c0c0",
+              "#808080",
+              "#ff0000",
+              "#00ff00",
+              "#ffff00",
+              "#0000ff",
+              "#ff00ff",
+              "#00ffff",
+              "#ffffff",
+            ];
+            return c[n] || "#ffffff";
+          }
+          if (n < 232) {
+            n -= 16;
+            const b = n % 6,
+              g = Math.floor(n / 6) % 6,
+              r = Math.floor(n / 36);
+            const v = (x) => (x ? x * 40 + 55 : 0);
+            return `rgb(${v(r)},${v(g)},${v(b)})`;
+          }
+          const lv = (n - 232) * 10 + 8;
+          return `rgb(${lv},${lv},${lv})`;
+        }
+      })();
+
+      // ── State ────────────────────────────────────────────────────────────────
+      let evtSource = null; // current EventSource (SSE)
+      let lineCount = 0;
+      let isStreaming = false;
+
+      const output = document.getElementById("output");
+      const lineCountEl = document.getElementById("line-count");
+      const statusBadge = document.getElementById("status-badge");
+      const btnRun = document.getElementById("btn-run");
+      const btnStream = document.getElementById("btn-stream");
+      const btnStop = document.getElementById("btn-stop");
+      const btnClear = document.getElementById("btn-clear");
+      const scrollBtn = document.getElementById("scroll-btn");
+      const autoscrollCb = document.getElementById("opt-autoscroll");
+
+      // ── Query-string persistence ─────────────────────────────────────────────
+      const QS_FIELDS = [
+        { id: "q", qs: "q", type: "text" },
+        { id: "opt-dir", qs: "dir", type: "text" },
+        { id: "opt-source", qs: "source", type: "select" },
+        { id: "opt-service", qs: "service", type: "text" },
+        { id: "opt-key", qs: "key", type: "text" },
+        { id: "opt-since", qs: "since", type: "text" },
+        { id: "opt-limit", qs: "limit", type: "number" },
+        { id: "opt-ignore-case", qs: "ignore_case", type: "checkbox" },
+        { id: "opt-json", qs: "json", type: "checkbox" },
+        { id: "opt-recursive", qs: "recursive", type: "checkbox" },
+      ];
+
+      function loadFromQS() {
+        const p = new URLSearchParams(window.location.search);
+        for (const f of QS_FIELDS) {
+          const el = document.getElementById(f.id);
+          if (!el || !p.has(f.qs)) continue;
+          if (f.type === "checkbox") el.checked = p.get(f.qs) === "true";
+          else el.value = p.get(f.qs);
+        }
+      }
+
+      function saveToQS() {
+        const p = new URLSearchParams();
+        for (const f of QS_FIELDS) {
+          const el = document.getElementById(f.id);
+          if (!el) continue;
+          const v = f.type === "checkbox" ? String(el.checked) : el.value;
+          if (v && v !== "0" && v !== "false") p.set(f.qs, v);
+        }
+        history.replaceState(null, "", "?" + p.toString());
+      }
+
+      function buildAPIParams() {
+        const p = new URLSearchParams();
+        for (const f of QS_FIELDS) {
+          const el = document.getElementById(f.id);
+          if (!el) continue;
+          const v = f.type === "checkbox" ? String(el.checked) : el.value;
+          p.set(f.qs, v);
+        }
+        return p;
+      }
+
+      // ── Output helpers ───────────────────────────────────────────────────────
+      function clearOutput() {
+        output.innerHTML =
+          '<div class="placeholder"><span class="big">⌕</span><span>Output cleared</span></div>';
+        lineCount = 0;
+        lineCountEl.textContent = "0 lines";
+      }
+
+      function appendLine(raw) {
+        if (output.querySelector(".placeholder")) output.innerHTML = "";
+        const span = document.createElement("span");
+        span.className = "log-line";
+        span.innerHTML = ansiToHtml(raw);
+        output.appendChild(span);
+        lineCount++;
+        lineCountEl.textContent = `${lineCount} line${lineCount !== 1 ? "s" : ""}`;
+        if (autoscrollCb.checked) {
+          output.scrollTop = output.scrollHeight;
+        }
+      }
+
+      function setStatus(text, cls) {
+        statusBadge.textContent = text;
+        statusBadge.className = "status-badge" + (cls ? " " + cls : "");
+      }
+
+      // ── Scroll-to-bottom button ──────────────────────────────────────────────
+      output.addEventListener("scroll", () => {
+        const atBottom =
+          output.scrollHeight - output.scrollTop - output.clientHeight < 40;
+        scrollBtn.classList.toggle("visible", !atBottom);
+      });
+      scrollBtn.addEventListener("click", () => {
+        output.scrollTop = output.scrollHeight;
+      });
+
+      // ── Historic search ──────────────────────────────────────────────────────
+      async function runSearch() {
+        stopStream();
+        saveToQS();
+
+        setStatus("loading…");
+        btnRun.disabled = true;
+
+        const params = buildAPIParams();
+        try {
+          const res = await authFetch("/api/logs?" + params.toString(), {
+            headers: {
+              Authorization: "Bearer " + API_TOKEN,
+            },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          clearOutput();
+          if (!data.lines || data.lines.length === 0) {
+            output.innerHTML =
+              '<div class="placeholder"><span>No results found</span></div>';
+          } else {
+            for (const line of data.lines) appendLine(line);
+          }
+          setStatus(`done · ${lineCount} lines`);
+        } catch (err) {
+          setStatus("error", "error");
+          appendLine("\x1b[31mError: " + err.message + "\x1b[0m");
+        } finally {
+          btnRun.disabled = false;
+        }
+      }
+
+      // ── SSE stream ───────────────────────────────────────────────────────────
+      function startStream() {
+        stopStream();
+        saveToQS();
+        clearOutput();
+
+        const params = buildAPIParams();
+        params.set("_auth", API_TOKEN);
+        const url = "/api/logs/stream?" + params.toString();
+
+        isStreaming = true;
+        evtSource = new EventSource(url);
+
+        btnStream.style.display = "none";
+        btnRun.style.display = "none";
+        btnStop.style.display = "";
+        setStatus("live", "live");
+
+        evtSource.onmessage = (e) => {
+          appendLine(e.data);
+        };
+
+        evtSource.addEventListener("done", () => {
+          setStatus("stream ended");
+          stopStream(false);
+        });
+
+        evtSource.onerror = () => {
+          setStatus("stream error", "error");
+          stopStream(false);
+        };
+      }
+
+      function stopStream(userInitiated = true) {
+        if (evtSource) {
+          evtSource.close();
+          evtSource = null;
+        }
+        isStreaming = false;
+        btnStream.style.display = "";
+        btnRun.style.display = "";
+        btnStop.style.display = "none";
+        if (userInitiated) setStatus("idle");
+      }
+
+      // ── Events ───────────────────────────────────────────────────────────────
+      btnRun.addEventListener("click", runSearch);
+      btnStream.addEventListener("click", startStream);
+      btnStop.addEventListener("click", () => stopStream(true));
+      btnClear.addEventListener("click", clearOutput);
+
+      document.getElementById("q").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") runSearch();
+      });
+
+      // save on any input change (debounced)
+      let saveTimer;
+      document.querySelectorAll("input, select").forEach((el) => {
+        el.addEventListener("change", () => {
+          clearTimeout(saveTimer);
+          saveTimer = setTimeout(saveToQS, 300);
+        });
+      });
+
+      // ── Init ─────────────────────────────────────────────────────────────────
+      loadFromQS();
+
+      // Auto-run if a query is already in the URL
+      if (new URLSearchParams(window.location.search).get("q")) {
+        runSearch();
+      }
+    </script>
+  </body>
+</html>

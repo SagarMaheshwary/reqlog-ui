@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server"
 )
 
@@ -26,6 +27,10 @@ func main() {
 	httpServer := server.NewServer(&server.Opts{
 		Config: cfg.HTTPServer,
 		Logger: log,
+		APIKey: cfg.APIKey,
+		ReqlogService: service.NewReqlogService(service.ReqlogServiceOpts{
+			BinaryPath: cfg.ReqlogBinaryPath,
+		}),
 	})
 	go func() {
 		err = httpServer.Serve()
