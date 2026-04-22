@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"os/exec"
 	"strconv"
@@ -22,6 +23,7 @@ type ReqlogParams struct {
 
 type ReqlogService interface {
 	Run(ctx context.Context, params ReqlogParams) ([]string, error)
+	Stream(ctx context.Context, params ReqlogParams, out chan<- string) error
 }
 
 type reqlogService struct {
@@ -55,6 +57,37 @@ func (s *reqlogService) Run(ctx context.Context, params ReqlogParams) ([]string,
 	}
 
 	return splitLines(string(out)), nil
+}
+
+func (s *reqlogService) Stream(ctx context.Context, params ReqlogParams, out chan<- string) error {
+	args := buildArgs(params, true)
+	cmd := exec.CommandContext(ctx, s.binaryPath, args...)
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	cmd.Stderr = cmd.Stdout
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	go func() {
+		defer close(out)
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				cmd.Process.Kill()
+				return
+			case out <- scanner.Text():
+			}
+		}
+		cmd.Wait()
+	}()
+
+	return nil
 }
 
 func splitLines(s string) []string {

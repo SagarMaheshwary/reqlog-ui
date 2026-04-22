@@ -18,9 +18,10 @@ type LoaderOptions struct {
 }
 
 type Config struct {
-	HTTPServer       *HTTPServer
-	APIKey           string
-	ReqlogBinaryPath string
+	HTTPServer        *HTTPServer
+	APIKey            string
+	StreamTokenExpiry time.Duration
+	ReqlogBinaryPath  string
 }
 
 type HTTPServer struct {
@@ -60,8 +61,9 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 			URL:             getEnv("HTTP_SERVER_URL", ":4000"),
 			ShutdownTimeout: getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
 		},
-		APIKey:           getEnv("HTTP_AUTH_API_KEY", ""),
-		ReqlogBinaryPath: getEnv("REQLOG_BINARY_PATH", "reqlog"),
+		APIKey:            getEnv("HTTP_AUTH_API_KEY", ""),
+		ReqlogBinaryPath:  getEnv("REQLOG_BINARY_PATH", "reqlog"),
+		StreamTokenExpiry: getEnvDuration("STREAM_TOKEN_EXPIRY", 30*time.Second),
 	}
 
 	return cfg, nil

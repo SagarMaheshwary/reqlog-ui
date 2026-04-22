@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
@@ -36,6 +38,58 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"lines": lines})
 }
 
+func (h *ReqlogHandler) LogsStream(c *gin.Context) {
+	params := parseParams(c)
+
+	// SSE headers
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no") // disable nginx buffering
+
+	lineCh := make(chan string, 256)
+	if err := h.reqlogService.Stream(c.Request.Context(), params, lineCh); err != nil {
+		h.logger.Error("reqlog stream failed", logger.Field{Key: "error", Value: err.Error()})
+		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
+		c.Writer.Flush()
+		return
+	}
+
+	// Heartbeat ticker keeps the connection alive through proxies.
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	flusher, _ := c.Writer.(http.Flusher)
+
+	for {
+		select {
+		case line, ok := <-lineCh:
+			if !ok {
+				// Process exited – signal the client.
+				fmt.Fprintf(c.Writer, "event: done\ndata: stream ended\n\n")
+				if flusher != nil {
+					flusher.Flush()
+				}
+				return
+			}
+			// Escape newlines inside the data value so SSE framing stays intact.
+			fmt.Fprintf(c.Writer, "data: %s\n\n", sseEscape(line))
+			if flusher != nil {
+				flusher.Flush()
+			}
+
+		case <-ticker.C:
+			fmt.Fprintf(c.Writer, ": heartbeat\n\n")
+			if flusher != nil {
+				flusher.Flush()
+			}
+
+		case <-c.Request.Context().Done():
+			return
+		}
+	}
+}
+
 func parseParams(c *gin.Context) service.ReqlogParams {
 	limitStr := c.DefaultQuery("limit", "0")
 	limit, _ := strconv.Atoi(limitStr)
@@ -57,4 +111,16 @@ func parseParams(c *gin.Context) service.ReqlogParams {
 		Service:     c.Query("service"),
 		Source:      c.DefaultQuery("source", "file"),
 	}
+}
+
+func sseEscape(s string) string {
+	out := ""
+	for i, ch := range s {
+		if ch == '\n' && i != len(s)-1 {
+			out += "\ndata: "
+		} else {
+			out += string(ch)
+		}
+	}
+	return out
 }

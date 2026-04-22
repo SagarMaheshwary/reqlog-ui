@@ -10,6 +10,7 @@ import (
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server"
 )
 
@@ -24,13 +25,17 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
+	reqlogService := service.NewReqlogService(service.ReqlogServiceOpts{
+		BinaryPath: cfg.ReqlogBinaryPath,
+	})
+	tokenStore := tokenstore.New(ctx, cfg.StreamTokenExpiry)
+
 	httpServer := server.NewServer(&server.Opts{
-		Config: cfg.HTTPServer,
-		Logger: log,
-		APIKey: cfg.APIKey,
-		ReqlogService: service.NewReqlogService(service.ReqlogServiceOpts{
-			BinaryPath: cfg.ReqlogBinaryPath,
-		}),
+		Config:        cfg.HTTPServer,
+		Logger:        log,
+		APIKey:        cfg.APIKey,
+		ReqlogService: reqlogService,
+		TokenStore:    tokenStore,
 	})
 	go func() {
 		err = httpServer.Serve()

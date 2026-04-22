@@ -8,6 +8,7 @@ import (
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/handler"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/middleware"
 )
@@ -17,6 +18,7 @@ type Opts struct {
 	APIKey        string
 	Logger        logger.Logger
 	ReqlogService service.ReqlogService
+	TokenStore    *tokenstore.Store
 }
 
 type HTTPServer struct {
@@ -30,7 +32,7 @@ func NewServer(opts *Opts) *HTTPServer {
 
 	r.Use(
 		gin.Recovery(),
-		middleware.ZerologMiddleware(),
+		middleware.Logger(),
 	)
 
 	r.StaticFile("/", "./static/index.html")
@@ -40,18 +42,25 @@ func NewServer(opts *Opts) *HTTPServer {
 	api := r.Group("/api")
 
 	authHandler := handler.NewAuthHandler(&handler.AuthHandlerOpts{
-		APIKey: opts.APIKey,
+		APIKey:     opts.APIKey,
+		TokenStore: opts.TokenStore,
 	})
 	api.POST("/auth/token", authHandler.Token)
 
 	protected := api.Group("/")
 	protected.Use(middleware.APIKeyAuth(opts.APIKey))
 	{
+		// Issues an expirable single-use token for the SSE endpoint
+		protected.POST("/auth/stream-token", authHandler.StreamToken)
+
 		reqlogHandler := handler.NewReqlogHandler(&handler.ReqlogHandlerOpts{
 			ReqlogService: opts.ReqlogService,
 			Logger:        opts.Logger,
 		})
 		protected.GET("/logs", reqlogHandler.Logs)
+
+		// SSE uses its own token-based auth so the API key never hits a URL
+		api.GET("/logs/stream", middleware.StreamTokenAuth(opts.TokenStore), reqlogHandler.LogsStream)
 	}
 
 	return &HTTPServer{

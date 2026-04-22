@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 )
 
 func APIKeyAuth(validKey string) gin.HandlerFunc {
@@ -23,6 +24,17 @@ func APIKeyAuth(validKey string) gin.HandlerFunc {
 			return
 		}
 
+		c.Next()
+	}
+}
+
+func StreamTokenAuth(store *tokenstore.Store) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Query("token")
+		if token == "" || !store.Consume(token) {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			return
+		}
 		c.Next()
 	}
 }

@@ -966,18 +966,33 @@
       }
 
       // ── SSE stream ───────────────────────────────────────────────────────────
-      function startStream() {
+      async function startStream() {
         stopStream();
         saveToQS();
         clearOutput();
 
+        let token;
+        try {
+          const res = await authFetch("/api/auth/stream-token", {
+            method: "POST",
+          });
+          if (!res.ok) throw new Error("could not obtain stream token");
+          const data = await res.json();
+          token = data.token;
+        } catch (err) {
+          setStatus("stream error", "error");
+          appendLine(
+            "\x1b[31mFailed to start stream: " + err.message + "\x1b[0m",
+          );
+          return;
+        }
+
         const params = buildAPIParams();
-        params.set("_auth", API_TOKEN);
+        params.set("token", token);
         const url = "/api/logs/stream?" + params.toString();
 
         isStreaming = true;
         evtSource = new EventSource(url);
-
         btnStream.style.display = "none";
         btnRun.style.display = "none";
         btnStop.style.display = "";
@@ -986,12 +1001,10 @@
         evtSource.onmessage = (e) => {
           appendLine(e.data);
         };
-
         evtSource.addEventListener("done", () => {
           setStatus("stream ended");
           stopStream(false);
         });
-
         evtSource.onerror = () => {
           setStatus("stream error", "error");
           stopStream(false);
