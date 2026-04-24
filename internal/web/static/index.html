@@ -668,13 +668,7 @@
 
         <div class="field-group">
           <label>Limit (newest N)</label>
-          <input
-            id="opt-limit"
-            type="number"
-            min="0"
-            value="0"
-            placeholder="0 = unlimited"
-          />
+          <input id="opt-limit" type="number" min="1" value="50" />
         </div>
 
         <hr class="sidebar-divider" />
@@ -698,7 +692,7 @@
         <div class="toggle-row">
           <span class="toggle-label">Recursive</span>
           <label class="toggle"
-            ><input type="checkbox" id="opt-recursive" checked /><span
+            ><input type="checkbox" id="opt-recursive" /><span
               class="slider"
             ></span
           ></label>
