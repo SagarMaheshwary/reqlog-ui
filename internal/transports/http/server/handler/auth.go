@@ -2,7 +2,6 @@ package handler
 
 import (
 	"crypto/subtle"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,8 +32,6 @@ func (h *AuthHandler) Token(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "key is required"})
 		return
 	}
-
-	fmt.Println("KEY", req, h.apiKey)
 
 	if subtle.ConstantTimeCompare([]byte(req.Key), []byte(h.apiKey)) != 1 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid key"})
