@@ -1,8 +1,11 @@
 package server
 
 import (
+	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
@@ -11,6 +14,7 @@ import (
 	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/handler"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/middleware"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/web"
 )
 
 type Opts struct {
@@ -28,16 +32,31 @@ type HTTPServer struct {
 }
 
 func NewServer(opts *Opts) *HTTPServer {
+	ginMode := opts.Config.GinMode
+	if !slices.Contains([]string{gin.DebugMode, gin.ReleaseMode}, ginMode) {
+		panic(fmt.Errorf("invalid gin mode: %s", ginMode))
+	}
+
+	gin.SetMode(ginMode)
 	r := gin.New()
 
 	r.Use(
 		gin.Recovery(),
-		middleware.Logger(),
 	)
 
-	r.StaticFile("/", "./static/index.html")
-	r.StaticFile("/login", "./static/login.html")
-	r.Static("/static", "./static")
+	if opts.Config.Logger {
+		r.Use(middleware.Logger())
+	}
+
+	sub, err := fs.Sub(web.StaticFS, "static")
+	if err != nil {
+		panic(err)
+	}
+
+	r.StaticFS("/static", http.FS(sub))
+
+	r.GET("/", serveHTML(sub, "index.html"))
+	r.GET("/login", serveHTML(sub, "login.html"))
 
 	api := r.Group("/api")
 
@@ -93,4 +112,15 @@ func (h *HTTPServer) Serve() error {
 	}
 
 	return h.ServeListener(listener)
+}
+
+func serveHTML(sub fs.FS, file string) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		data, err := fs.ReadFile(sub, file)
+		if err != nil {
+			c.Status(500)
+			return
+		}
+		c.Data(200, "text/html; charset=utf-8", data)
+	}
 }
