@@ -41,14 +41,13 @@ func main() {
 	}
 
 	reqlogService := service.NewReqlogService(service.ReqlogServiceOpts{
-		BinaryPath: cfg.ReqlogBinaryPath,
+		Config: cfg.Reqlog,
 	})
-	tokenStore := tokenstore.New(ctx, cfg.StreamTokenExpiry)
+	tokenStore := tokenstore.New(ctx, cfg.HTTPServer.StreamTokenExpiry)
 
 	httpServer := server.NewServer(&server.Opts{
 		Config:        cfg.HTTPServer,
 		Logger:        log,
-		APIKey:        cfg.APIKey,
 		ReqlogService: reqlogService,
 		TokenStore:    tokenStore,
 	})

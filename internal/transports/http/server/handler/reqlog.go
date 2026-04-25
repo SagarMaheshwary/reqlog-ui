@@ -3,11 +3,11 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
 )
 
@@ -26,7 +26,11 @@ func NewReqlogHandler(opts *ReqlogHandlerOpts) *ReqlogHandler {
 }
 
 func (h *ReqlogHandler) Logs(c *gin.Context) {
-	params := parseParams(c)
+	params, err := reqlog.ParseParams(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	lines, err := h.reqlogService.Run(c.Request.Context(), params)
 	if err != nil {
@@ -39,7 +43,12 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 }
 
 func (h *ReqlogHandler) LogsStream(c *gin.Context) {
-	params := parseParams(c)
+	params, err := reqlog.ParseParams(c)
+	if err != nil {
+		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
+		c.Writer.Flush()
+		return
+	}
 
 	// SSE headers
 	c.Header("Content-Type", "text/event-stream")
@@ -48,7 +57,8 @@ func (h *ReqlogHandler) LogsStream(c *gin.Context) {
 	c.Header("X-Accel-Buffering", "no") // disable nginx buffering
 
 	lineCh := make(chan string, 256)
-	if err := h.reqlogService.Stream(c.Request.Context(), params, lineCh); err != nil {
+	errCh, err := h.reqlogService.Stream(c.Request.Context(), params, lineCh)
+	if err != nil {
 		h.logger.Error("reqlog stream failed", logger.Field{Key: "error", Value: err.Error()})
 		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
 		c.Writer.Flush()
@@ -61,22 +71,34 @@ func (h *ReqlogHandler) LogsStream(c *gin.Context) {
 
 	flusher, _ := c.Writer.(http.Flusher)
 
+	if flusher != nil {
+		flusher.Flush()
+	}
+
 	for {
 		select {
 		case line, ok := <-lineCh:
 			if !ok {
-				// Process exited – signal the client.
 				fmt.Fprintf(c.Writer, "event: done\ndata: stream ended\n\n")
 				if flusher != nil {
 					flusher.Flush()
 				}
 				return
 			}
-			// Escape newlines inside the data value so SSE framing stays intact.
+
 			fmt.Fprintf(c.Writer, "data: %s\n\n", sseEscape(line))
 			if flusher != nil {
 				flusher.Flush()
 			}
+
+		case err := <-errCh:
+			if err != nil {
+				fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", sseEscape(err.Error()))
+				if flusher != nil {
+					flusher.Flush()
+				}
+			}
+			return
 
 		case <-ticker.C:
 			fmt.Fprintf(c.Writer, ": heartbeat\n\n")
@@ -87,29 +109,6 @@ func (h *ReqlogHandler) LogsStream(c *gin.Context) {
 		case <-c.Request.Context().Done():
 			return
 		}
-	}
-}
-
-func parseParams(c *gin.Context) service.ReqlogParams {
-	limitStr := c.DefaultQuery("limit", "0")
-	limit, _ := strconv.Atoi(limitStr)
-
-	recursive := true
-	if r := c.Query("recursive"); r == "false" || r == "0" {
-		recursive = false
-	}
-
-	return service.ReqlogParams{
-		SearchValue: c.Query("q"),
-		Dir:         c.DefaultQuery("dir", "./logs"),
-		IgnoreCase:  c.Query("ignore_case") == "true" || c.Query("ignore_case") == "1",
-		Limit:       limit,
-		JSON:        c.Query("json") == "true" || c.Query("json") == "1",
-		Key:         c.Query("key"),
-		Since:       c.Query("since"),
-		Recursive:   recursive,
-		Service:     c.Query("service"),
-		Source:      c.DefaultQuery("source", "file"),
 	}
 }
 

@@ -19,7 +19,6 @@ import (
 
 type Opts struct {
 	Config        *config.HTTPServer
-	APIKey        string
 	Logger        logger.Logger
 	ReqlogService service.ReqlogService
 	TokenStore    *tokenstore.Store
@@ -61,13 +60,13 @@ func NewServer(opts *Opts) *HTTPServer {
 	api := r.Group("/api")
 
 	authHandler := handler.NewAuthHandler(&handler.AuthHandlerOpts{
-		APIKey:     opts.APIKey,
+		APIKey:     opts.Config.APIKey,
 		TokenStore: opts.TokenStore,
 	})
 	api.POST("/auth/token", authHandler.Token)
 
 	protected := api.Group("/")
-	protected.Use(middleware.APIKeyAuth(opts.APIKey))
+	protected.Use(middleware.APIKeyAuth(opts.Config.APIKey))
 	{
 		// Issues an expirable single-use token for the SSE endpoint
 		protected.POST("/auth/stream-token", authHandler.StreamToken)
