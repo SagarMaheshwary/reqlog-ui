@@ -4,10 +4,10 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-  cmd = "go build -o ./tmp/main ./cmd/server/main.go"
+  cmd = "go build -o ./tmp/main ./cmd/reqlog-ui/main.go"
   bin = "tmp/main"
   full_bin = "APP_ENV=dev APP_USER=air ./tmp/main"
-  include_ext = ["go", "env"]
+  include_ext = ["go", "env", "html"]
   exclude_dir = ["tmp", "assets", "vendor", "bin", "build", "deploy"]
   include_dir = []
   exclude_regex = ["_test.go"]

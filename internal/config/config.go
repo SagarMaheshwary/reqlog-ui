@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/gofor-little/env"
@@ -19,11 +20,21 @@ type LoaderOptions struct {
 
 type Config struct {
 	HTTPServer *HTTPServer
+	Reqlog     *Reqlog
+}
+
+type Reqlog struct {
+	BinaryPath       string
+	ExecutionTimeout time.Duration
 }
 
 type HTTPServer struct {
-	URL             string
-	ShutdownTimeout time.Duration
+	URL               string
+	ShutdownTimeout   time.Duration
+	GinMode           string
+	Logger            bool
+	APIKey            string
+	StreamTokenExpiry time.Duration
 }
 
 func NewConfig(log logger.Logger) (*Config, error) {
@@ -55,8 +66,16 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 
 	cfg := &Config{
 		HTTPServer: &HTTPServer{
-			URL:             getEnv("HTTP_SERVER_URL", ":4000"),
-			ShutdownTimeout: getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
+			URL:               getEnv("HTTP_SERVER_URL", "localhost:4000"),
+			ShutdownTimeout:   getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
+			GinMode:           getEnv("HTTP_GIN_MODE", "release"),
+			Logger:            getEnvBool("HTTP_LOGGER_ENABLED", false),
+			APIKey:            getEnv("HTTP_AUTH_API_KEY", ""),
+			StreamTokenExpiry: getEnvDuration("HTTP_STREAM_TOKEN_EXPIRY", 30*time.Second),
+		},
+		Reqlog: &Reqlog{
+			BinaryPath:       getEnv("REQLOG_BINARY_PATH", "reqlog"),
+			ExecutionTimeout: getEnvDuration("REQLOG_EXECUTION_TIMEOUT", 15*time.Minute),
 		},
 	}
 
@@ -80,6 +99,14 @@ func getEnv(key string, defaultVal string) string {
 
 func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 	if val, err := time.ParseDuration(os.Getenv(key)); err == nil {
+		return val
+	}
+
+	return defaultVal
+}
+
+func getEnvBool(key string, defaultVal bool) bool {
+	if val, err := strconv.ParseBool(os.Getenv(key)); err == nil {
 		return val
 	}
 
