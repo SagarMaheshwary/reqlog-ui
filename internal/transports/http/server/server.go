@@ -44,7 +44,7 @@ func NewServer(opts *Opts) *HTTPServer {
 	)
 
 	if opts.Config.Logger {
-		r.Use(middleware.Logger())
+		r.Use(middleware.Logger(opts.Logger))
 	}
 
 	sub, err := fs.Sub(web.StaticFS, "static")

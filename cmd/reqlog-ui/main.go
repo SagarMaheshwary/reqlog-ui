@@ -5,11 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
 
+	"github.com/rs/zerolog"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
@@ -33,9 +35,23 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	log := logger.NewZerologLogger("info", os.Stderr)
+	var out io.Writer
+	out = zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "2006-01-02T15:04:05.000Z"}
+	if os.Getenv("DISABLE_PRETTY_LOGS") == "1" {
+		out = os.Stderr
+	}
 
-	cfg, err := config.NewConfig(log)
+	log := logger.NewZerologLogger("info", out)
+
+	envPath := os.Getenv("ENV_FILE")
+	if envPath == "" {
+		envPath = ".env"
+	}
+
+	cfg, err := config.NewConfigWithOptions(config.LoaderOptions{
+		EnvPath: envPath,
+		Logger:  log,
+	})
 	if err != nil {
 		log.Fatal(err.Error())
 	}
