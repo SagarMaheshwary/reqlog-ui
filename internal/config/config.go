@@ -2,9 +2,6 @@ package config
 
 import (
 	"os"
-	"path"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -37,13 +34,6 @@ type HTTPServer struct {
 	StreamTokenExpiry time.Duration
 }
 
-func NewConfig(log logger.Logger) (*Config, error) {
-	return NewConfigWithOptions(LoaderOptions{
-		EnvPath: path.Join(rootDir(), "..", ".env"),
-		Logger:  log,
-	})
-}
-
 func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 	log := opts.Logger
 	envLoader := opts.EnvLoader
@@ -59,9 +49,9 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 	}
 
 	if err := envLoader(opts.EnvPath); err == nil {
-		log.Info("Loaded environment variables from" + opts.EnvPath)
+		log.Info("Loaded environment variables from " + opts.EnvPath)
 	} else {
-		log.Info("failed to load .env file, using system environment variables")
+		log.Info("failed to load .env file, using system environment variables", logger.Field{Key: "path", Value: opts.EnvPath})
 	}
 
 	cfg := &Config{
@@ -80,13 +70,6 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func rootDir() string {
-	_, b, _, _ := runtime.Caller(0)
-	d := path.Join(path.Dir(b))
-
-	return filepath.Dir(d)
 }
 
 func getEnv(key string, defaultVal string) string {
