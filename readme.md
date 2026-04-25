@@ -100,6 +100,8 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 | `REQLOG_BINARY_PATH`       | Path to reqlog binary                     | `reqlog`         |
 | `REQLOG_EXECUTION_TIMEOUT` | Max time allowed for log search execution | `15m`            |
 | `HTTP_STREAM_TOKEN_EXPIRY` | Expiry for SSE stream tokens              | `30s`            |
+| `ENV_FILE`                 | .env path                                 | `.env`           |
+| `DISABLE_PRETTY_LOGS`      | disable pretty logs and output raw JSON   | `0`              |
 
 > See `.env.example` for all available environment variables.
 
