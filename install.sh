@@ -9,7 +9,7 @@ INSTALL_PATH="/usr/local/bin/reqlog-ui"
 if ! command -v reqlog >/dev/null 2>&1; then
   echo "reqlog is required for reqlog-ui."
   echo "Install it using:"
-  echo "curl -sSL https://raw.githubusercontent.com/sagarmaheshwary/reqlog/main/install.sh | bash"
+  echo "curl -sSL https://raw.githubusercontent.com/sagarmaheshwary/reqlog/master/install.sh | bash"
   exit 1
 fi
 
