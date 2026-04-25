@@ -73,7 +73,7 @@ openssl rand -hex 32
 ### 2. Open in browser
 
 ```
-http://localhost:8080
+http://localhost:4000
 ```
 
 ### 3. Authenticate
@@ -120,10 +120,10 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 
 > Ensure compatible versions for correct behavior.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions, issues, and suggestions are welcome.
 
-## 📄 License
+## License
 
 MIT License
