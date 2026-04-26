@@ -91,6 +91,25 @@
       #q::placeholder {
         color: var(--muted);
       }
+      #q.invalid {
+        border-color: var(--danger);
+        animation: shake 0.3s ease;
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-5px);
+        }
+        60% {
+          transform: translateX(5px);
+        }
+        80% {
+          transform: translateX(-3px);
+        }
+      }
 
       .btn {
         cursor: pointer;
@@ -1059,7 +1078,24 @@
       });
 
       // ── Historic search ──────────────────────────────────────────────────────
+      function validateQuery() {
+        const qEl = document.getElementById("q");
+        if (qEl.value.trim()) {
+          qEl.classList.remove("invalid");
+          return true;
+        }
+        qEl.classList.remove("invalid");
+        // Force reflow so the animation re-triggers on repeated attempts
+        void qEl.offsetWidth;
+        qEl.classList.add("invalid");
+        qEl.focus();
+        setStatus("query required", "error");
+        return false;
+      }
+
       async function runSearch() {
+        if (!validateQuery()) return;
+
         stopStream();
         saveToQS();
 
@@ -1083,6 +1119,7 @@
           setStatus(`done · ${lineCount} lines`);
         } catch (err) {
           hideLoading();
+          clearOutput();
           setStatus("error", "error");
           appendLine("\x1b[31mError: " + err.message + "\x1b[0m");
         } finally {
@@ -1092,6 +1129,8 @@
 
       // ── SSE stream ───────────────────────────────────────────────────────────
       async function startStream() {
+        if (!validateQuery()) return;
+
         stopStream();
         saveToQS();
         clearOutput();
@@ -1154,9 +1193,13 @@
       btnStop.addEventListener("click", () => stopStream(true));
       btnClear.addEventListener("click", clearOutput);
 
-      document.getElementById("q").addEventListener("keydown", (e) => {
+      const qInput = document.getElementById("q");
+      qInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") runSearch();
       });
+      qInput.addEventListener("input", () =>
+        qInput.classList.remove("invalid"),
+      );
 
       // save on any input change (debounced)
       let saveTimer;

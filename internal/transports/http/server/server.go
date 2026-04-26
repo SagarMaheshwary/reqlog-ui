@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"net"
@@ -22,12 +23,13 @@ type Opts struct {
 	Logger        logger.Logger
 	ReqlogService service.ReqlogService
 	TokenStore    *tokenstore.Store
+	ReqlogConfig  *config.Reqlog
 }
 
 type HTTPServer struct {
-	Config *config.HTTPServer
-	Server *http.Server
-	Logger logger.Logger
+	config *config.HTTPServer
+	server *http.Server
+	logger logger.Logger
 }
 
 func NewServer(opts *Opts) *HTTPServer {
@@ -74,37 +76,41 @@ func NewServer(opts *Opts) *HTTPServer {
 		reqlogHandler := handler.NewReqlogHandler(&handler.ReqlogHandlerOpts{
 			ReqlogService: opts.ReqlogService,
 			Logger:        opts.Logger,
+			Config:        opts.ReqlogConfig,
 		})
-		protected.GET("/logs", reqlogHandler.Logs)
 
+		protected.GET("/logs", reqlogHandler.Logs)
 		// SSE uses its own token-based auth so the API key never hits a URL
-		api.GET("/logs/stream", middleware.StreamTokenAuth(opts.TokenStore), reqlogHandler.LogsStream)
+		api.GET("/logs/stream",
+			middleware.StreamTokenAuth(opts.TokenStore),
+			reqlogHandler.LogsStream,
+		)
 	}
 
 	return &HTTPServer{
-		Config: opts.Config,
-		Server: &http.Server{
+		config: opts.Config,
+		server: &http.Server{
 			Addr:    opts.Config.URL,
 			Handler: r,
 		},
-		Logger: opts.Logger,
+		logger: opts.Logger,
 	}
 }
 
 func (h *HTTPServer) ServeListener(listener net.Listener) error {
-	h.Logger.Info("HTTP server started", logger.Field{Key: "address", Value: listener.Addr().String()})
-	if err := h.Server.Serve(listener); err != nil && err != http.ErrServerClosed {
-		h.Logger.Error("HTTP server failed", logger.Field{Key: "error", Value: err.Error()})
+	h.logger.Info("HTTP server started", logger.Field{Key: "address", Value: listener.Addr().String()})
+	if err := h.server.Serve(listener); err != nil && err != http.ErrServerClosed {
+		h.logger.Error("HTTP server failed", logger.Field{Key: "error", Value: err.Error()})
 		return err
 	}
 	return nil
 }
 
 func (h *HTTPServer) Serve() error {
-	listener, err := net.Listen("tcp", h.Config.URL)
+	listener, err := net.Listen("tcp", h.config.URL)
 	if err != nil {
-		h.Logger.Error("Failed to create HTTP listener",
-			logger.Field{Key: "address", Value: h.Config.URL},
+		h.logger.Error("Failed to create HTTP listener",
+			logger.Field{Key: "address", Value: h.config.URL},
 			logger.Field{Key: "error", Value: err.Error()},
 		)
 		return err
@@ -113,11 +119,18 @@ func (h *HTTPServer) Serve() error {
 	return h.ServeListener(listener)
 }
 
+func (h *HTTPServer) Shutdown(ctx context.Context) error {
+	if h.server == nil {
+		return nil
+	}
+	return h.server.Shutdown(ctx)
+}
+
 func serveHTML(sub fs.FS, file string) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		data, err := fs.ReadFile(sub, file)
 		if err != nil {
-			c.Status(500)
+			c.Status(http.StatusInternalServerError)
 			return
 		}
 		c.Data(200, "text/html; charset=utf-8", data)

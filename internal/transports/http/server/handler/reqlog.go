@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
@@ -14,19 +15,25 @@ import (
 type ReqlogHandlerOpts struct {
 	ReqlogService service.ReqlogService
 	Logger        logger.Logger
+	Config        *config.Reqlog
 }
 
 type ReqlogHandler struct {
 	reqlogService service.ReqlogService
 	logger        logger.Logger
+	config        *config.Reqlog
 }
 
 func NewReqlogHandler(opts *ReqlogHandlerOpts) *ReqlogHandler {
-	return &ReqlogHandler{reqlogService: opts.ReqlogService, logger: opts.Logger}
+	return &ReqlogHandler{
+		reqlogService: opts.ReqlogService,
+		logger:        opts.Logger,
+		config:        opts.Config,
+	}
 }
 
 func (h *ReqlogHandler) Logs(c *gin.Context) {
-	params, err := reqlog.ParseParams(c)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -43,7 +50,7 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 }
 
 func (h *ReqlogHandler) LogsStream(c *gin.Context) {
-	params, err := reqlog.ParseParams(c)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines)
 	if err != nil {
 		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
 		c.Writer.Flush()
