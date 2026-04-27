@@ -21,9 +21,11 @@ type Config struct {
 }
 
 type Reqlog struct {
-	BinaryPath       string
-	ExecutionTimeout time.Duration
-	MaxLines         int
+	BinaryPath        string
+	ExecutionTimeout  time.Duration
+	MaxLines          int
+	SearchConcurrency int
+	StreamConcurrency int
 }
 
 type HTTPServer struct {
@@ -65,9 +67,11 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 			StreamTokenExpiry: getEnvDuration("HTTP_STREAM_TOKEN_EXPIRY", 30*time.Second),
 		},
 		Reqlog: &Reqlog{
-			BinaryPath:       getEnv("REQLOG_BINARY_PATH", "reqlog"),
-			ExecutionTimeout: getEnvDuration("REQLOG_EXECUTION_TIMEOUT", 15*time.Minute),
-			MaxLines:         getEnvInt("REQLOG_MAX_LINES", 5000),
+			BinaryPath:        getEnv("REQLOG_BINARY_PATH", "reqlog"),
+			ExecutionTimeout:  getEnvDuration("REQLOG_EXECUTION_TIMEOUT", 15*time.Minute),
+			MaxLines:          getEnvInt("REQLOG_MAX_LINES", 5000),
+			SearchConcurrency: getEnvInt("REQLOG_SEARCH_CONCURRENCY", 5),
+			StreamConcurrency: getEnvInt("REQLOG_STREAM_CONCURRENCY", 5),
 		},
 	}
 

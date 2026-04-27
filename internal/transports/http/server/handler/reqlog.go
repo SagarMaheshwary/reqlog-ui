@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -42,6 +43,20 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 	lines, err := h.reqlogService.Run(c.Request.Context(), params)
 	if err != nil {
 		h.logger.Error("reqlog run failed", logger.Field{Key: "error", Value: err.Error()})
+
+		var tooManyErr *service.TooManyRequestsError
+		if errors.As(err, &tooManyErr) {
+			c.Header("Content-Type", "application/json")
+
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":   "too_many_requests",
+				"message": tooManyErr.Message,
+				"active":  tooManyErr.Active,
+				"limit":   tooManyErr.Limit,
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -67,9 +82,18 @@ func (h *ReqlogHandler) LogsStream(c *gin.Context) {
 	errCh, err := h.reqlogService.Stream(c.Request.Context(), params, lineCh)
 	if err != nil {
 		h.logger.Error("reqlog stream failed", logger.Field{Key: "error", Value: err.Error()})
-		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
-		c.Writer.Flush()
-		return
+
+		var tooManyErr *service.TooManyRequestsError
+		if errors.As(err, &tooManyErr) {
+			fmt.Fprintf(c.Writer,
+				"event: error\ndata: {\"error\":\"too_many_requests\",\"message\":\"%s\",\"active\":%d,\"limit\":%d}\n\n",
+				tooManyErr.Message, tooManyErr.Active, tooManyErr.Limit)
+			c.Writer.Flush()
+
+			fmt.Fprintf(c.Writer, "event: done\ndata: end\n\n")
+			c.Writer.Flush()
+			return
+		}
 	}
 
 	// Heartbeat ticker keeps the connection alive through proxies.
