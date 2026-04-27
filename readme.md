@@ -13,6 +13,7 @@ It’s designed for small teams that want **quick visibility into logs without S
 - API key-based authentication
 - Minimal setup (single binary)
 - Built with Go — lightweight and fast
+- Concurrency limits for safe multi-user usage
 
 ## Installation
 
@@ -93,17 +94,23 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 
 ## Configuration
 
-| Variable                   | Description                               | Default          |
-| -------------------------- | ----------------------------------------- | ---------------- |
-| `HTTP_AUTH_API_KEY`        | API key required to access the UI         | **required**     |
-| `HTTP_SERVER_URL`          | Address the server listens on             | `localhost:4000` |
-| `REQLOG_BINARY_PATH`       | Path to reqlog binary                     | `reqlog`         |
-| `REQLOG_EXECUTION_TIMEOUT` | Max time allowed for log search execution | `15m`            |
-| `HTTP_STREAM_TOKEN_EXPIRY` | Expiry for SSE stream tokens              | `30s`            |
-| `ENV_FILE`                 | .env path                                 | `.env`           |
-| `DISABLE_PRETTY_LOGS`      | disable pretty logs and output raw JSON   | `0`              |
+| Variable                    | Description                                 | Default          |
+| --------------------------- | ------------------------------------------- | ---------------- |
+| `HTTP_AUTH_API_KEY`         | API key required to access the UI           | **required**     |
+| `HTTP_SERVER_URL`           | Address the server listens on               | `localhost:4000` |
+| `REQLOG_BINARY_PATH`        | Path to reqlog binary                       | `reqlog`         |
+| `REQLOG_EXECUTION_TIMEOUT`  | Max time allowed for log search execution   | `15m`            |
+| `HTTP_STREAM_TOKEN_EXPIRY`  | Expiry for SSE stream tokens                | `30s`            |
+| `REQLOG_MAX_LINES`          | Max number of log lines returned per search | `5000`           |
+| `REQLOG_SEARCH_CONCURRENCY` | Max concurrent search requests              | `5`              |
+| `REQLOG_STREAM_CONCURRENCY` | Max concurrent live stream connections      | `5`              |
+| `ENV_FILE`                  | .env path                                   | `.env`           |
+| `DISABLE_PRETTY_LOGS`       | disable pretty logs and output raw JSON     | `0`              |
 
 > See `.env.example` for all available environment variables.
+
+> Concurrency limits help prevent resource exhaustion when multiple users are searching or streaming logs simultaneously.  
+> When limits are exceeded, search requests return HTTP 429 and stream requests emit an SSE error event.
 
 ## Security Notes
 
@@ -118,7 +125,7 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 
 | reqlog-ui | reqlog |
 | --------- | ------ |
-| v0.1.0    | v0.2.1 |
+| v0.2.0    | v0.2.2 |
 
 > Ensure compatible versions for correct behavior.
 
