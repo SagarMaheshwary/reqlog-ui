@@ -21,8 +21,11 @@ type Config struct {
 }
 
 type Reqlog struct {
-	BinaryPath       string
-	ExecutionTimeout time.Duration
+	BinaryPath        string
+	ExecutionTimeout  time.Duration
+	MaxLines          int
+	SearchConcurrency int
+	StreamConcurrency int
 }
 
 type HTTPServer struct {
@@ -64,8 +67,11 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 			StreamTokenExpiry: getEnvDuration("HTTP_STREAM_TOKEN_EXPIRY", 30*time.Second),
 		},
 		Reqlog: &Reqlog{
-			BinaryPath:       getEnv("REQLOG_BINARY_PATH", "reqlog"),
-			ExecutionTimeout: getEnvDuration("REQLOG_EXECUTION_TIMEOUT", 15*time.Minute),
+			BinaryPath:        getEnv("REQLOG_BINARY_PATH", "reqlog"),
+			ExecutionTimeout:  getEnvDuration("REQLOG_EXECUTION_TIMEOUT", 15*time.Minute),
+			MaxLines:          getEnvInt("REQLOG_MAX_LINES", 5000),
+			SearchConcurrency: getEnvInt("REQLOG_SEARCH_CONCURRENCY", 5),
+			StreamConcurrency: getEnvInt("REQLOG_STREAM_CONCURRENCY", 5),
 		},
 	}
 
@@ -90,6 +96,14 @@ func getEnvDuration(key string, defaultVal time.Duration) time.Duration {
 
 func getEnvBool(key string, defaultVal bool) bool {
 	if val, err := strconv.ParseBool(os.Getenv(key)); err == nil {
+		return val
+	}
+
+	return defaultVal
+}
+
+func getEnvInt(key string, defaultVal int) int {
+	if val, err := strconv.Atoi(os.Getenv(key)); err == nil {
 		return val
 	}
 

@@ -91,6 +91,25 @@
       #q::placeholder {
         color: var(--muted);
       }
+      #q.invalid {
+        border-color: var(--danger);
+        animation: shake 0.3s ease;
+      }
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        20% {
+          transform: translateX(-5px);
+        }
+        60% {
+          transform: translateX(5px);
+        }
+        80% {
+          transform: translateX(-3px);
+        }
+      }
 
       .btn {
         cursor: pointer;
@@ -605,6 +624,47 @@
       #scroll-btn.visible {
         display: flex;
       }
+
+      /* ── rate-limit banner ────────────────────────────────────────────────── */
+      .rate-limit-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        gap: 12px;
+        user-select: none;
+        animation: fadein 0.3s ease;
+      }
+      .rate-limit-icon {
+        font-size: 2.2rem;
+      }
+      .rate-limit-title {
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--danger);
+      }
+      .rate-limit-msg {
+        font-size: 0.82rem;
+        color: var(--text-dim);
+        text-align: center;
+        max-width: 320px;
+      }
+      .rate-limit-meta {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .rate-limit-pill {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        padding: 3px 10px;
+        border-radius: 99px;
+        border: 1px solid var(--danger);
+        color: var(--danger);
+        opacity: 0.8;
+      }
     </style>
   </head>
   <body>
@@ -1058,8 +1118,44 @@
         output.scrollTop = output.scrollHeight;
       });
 
+      // ── Rate-limit banner ───────────────────────────────────────────────────
+      function showRateLimit(data) {
+        hideLoading();
+        const active = data.active ?? "?";
+        const limit = data.limit ?? "?";
+        const msg = data.message || "System is busy, try again shortly";
+        output.innerHTML = `
+    <div class="rate-limit-wrap">
+      <div class="rate-limit-icon">⏳</div>
+      <div class="rate-limit-title">Too Many Requests</div>
+      <div class="rate-limit-msg">${msg}</div>
+      <div class="rate-limit-meta">
+        <span class="rate-limit-pill">active: ${active}</span>
+        <span class="rate-limit-pill">limit: ${limit}</span>
+      </div>
+    </div>`;
+        setStatus("rate limited", "error");
+      }
+
       // ── Historic search ──────────────────────────────────────────────────────
+      function validateQuery() {
+        const qEl = document.getElementById("q");
+        if (qEl.value.trim()) {
+          qEl.classList.remove("invalid");
+          return true;
+        }
+        qEl.classList.remove("invalid");
+        // Force reflow so the animation re-triggers on repeated attempts
+        void qEl.offsetWidth;
+        qEl.classList.add("invalid");
+        qEl.focus();
+        setStatus("query required", "error");
+        return false;
+      }
+
       async function runSearch() {
+        if (!validateQuery()) return;
+
         stopStream();
         saveToQS();
 
@@ -1070,9 +1166,13 @@
         const params = buildAPIParams();
         try {
           const res = await authFetch("/api/logs?" + params.toString());
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           hideLoading();
+          if (res.status === 429) {
+            showRateLimit(data);
+            return;
+          }
+          if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
           clearOutput();
           if (!data.lines || data.lines.length === 0) {
             output.innerHTML =
@@ -1083,6 +1183,7 @@
           setStatus(`done · ${lineCount} lines`);
         } catch (err) {
           hideLoading();
+          clearOutput();
           setStatus("error", "error");
           appendLine("\x1b[31mError: " + err.message + "\x1b[0m");
         } finally {
@@ -1092,9 +1193,12 @@
 
       // ── SSE stream ───────────────────────────────────────────────────────────
       async function startStream() {
+        if (!validateQuery()) return;
+
         stopStream();
         saveToQS();
         clearOutput();
+        showLoading("loading");
 
         let token;
         try {
@@ -1105,6 +1209,8 @@
           const data = await res.json();
           token = data.token;
         } catch (err) {
+          hideLoading();
+          clearOutput();
           setStatus("stream error", "error");
           appendLine(
             "\x1b[31mFailed to start stream: " + err.message + "\x1b[0m",
@@ -1123,14 +1229,28 @@
         btnStop.style.display = "";
         setStatus("live", "live");
 
+        let isLoading = true;
         evtSource.onmessage = (e) => {
+          if (isLoading) {
+            hideLoading();
+            clearOutput();
+            isLoading = false;
+          }
           appendLine(e.data);
         };
         evtSource.addEventListener("done", () => {
           setStatus("stream ended");
           stopStream(false);
         });
-        evtSource.onerror = () => {
+        evtSource.onerror = (e) => {
+          if (e?.data) {
+            const data = JSON.parse(e.data);
+            if (data && data?.error == "too_many_requests") {
+              showRateLimit(data);
+              return;
+            }
+          }
+
           setStatus("stream error", "error");
           stopStream(false);
         };
@@ -1154,9 +1274,13 @@
       btnStop.addEventListener("click", () => stopStream(true));
       btnClear.addEventListener("click", clearOutput);
 
-      document.getElementById("q").addEventListener("keydown", (e) => {
+      const qInput = document.getElementById("q");
+      qInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") runSearch();
       });
+      qInput.addEventListener("input", () =>
+        qInput.classList.remove("invalid"),
+      );
 
       // save on any input change (debounced)
       let saveTimer;
@@ -1169,11 +1293,6 @@
 
       // ── Init ─────────────────────────────────────────────────────────────────
       loadFromQS();
-
-      // Auto-run if a query is already in the URL
-      if (new URLSearchParams(window.location.search).get("q")) {
-        runSearch();
-      }
     </script>
   </body>
 </html>

@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
@@ -14,19 +16,25 @@ import (
 type ReqlogHandlerOpts struct {
 	ReqlogService service.ReqlogService
 	Logger        logger.Logger
+	Config        *config.Reqlog
 }
 
 type ReqlogHandler struct {
 	reqlogService service.ReqlogService
 	logger        logger.Logger
+	config        *config.Reqlog
 }
 
 func NewReqlogHandler(opts *ReqlogHandlerOpts) *ReqlogHandler {
-	return &ReqlogHandler{reqlogService: opts.ReqlogService, logger: opts.Logger}
+	return &ReqlogHandler{
+		reqlogService: opts.ReqlogService,
+		logger:        opts.Logger,
+		config:        opts.Config,
+	}
 }
 
 func (h *ReqlogHandler) Logs(c *gin.Context) {
-	params, err := reqlog.ParseParams(c)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -35,6 +43,20 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 	lines, err := h.reqlogService.Run(c.Request.Context(), params)
 	if err != nil {
 		h.logger.Error("reqlog run failed", logger.Field{Key: "error", Value: err.Error()})
+
+		var tooManyErr *service.TooManyRequestsError
+		if errors.As(err, &tooManyErr) {
+			c.Header("Content-Type", "application/json")
+
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":   "too_many_requests",
+				"message": tooManyErr.Message,
+				"active":  tooManyErr.Active,
+				"limit":   tooManyErr.Limit,
+			})
+			return
+		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -43,7 +65,7 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 }
 
 func (h *ReqlogHandler) LogsStream(c *gin.Context) {
-	params, err := reqlog.ParseParams(c)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines)
 	if err != nil {
 		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
 		c.Writer.Flush()
@@ -60,9 +82,18 @@ func (h *ReqlogHandler) LogsStream(c *gin.Context) {
 	errCh, err := h.reqlogService.Stream(c.Request.Context(), params, lineCh)
 	if err != nil {
 		h.logger.Error("reqlog stream failed", logger.Field{Key: "error", Value: err.Error()})
-		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
-		c.Writer.Flush()
-		return
+
+		var tooManyErr *service.TooManyRequestsError
+		if errors.As(err, &tooManyErr) {
+			fmt.Fprintf(c.Writer,
+				"event: error\ndata: {\"error\":\"too_many_requests\",\"message\":\"%s\",\"active\":%d,\"limit\":%d}\n\n",
+				tooManyErr.Message, tooManyErr.Active, tooManyErr.Limit)
+			c.Writer.Flush()
+
+			fmt.Fprintf(c.Writer, "event: done\ndata: end\n\n")
+			c.Writer.Flush()
+			return
+		}
 	}
 
 	// Heartbeat ticker keeps the connection alive through proxies.

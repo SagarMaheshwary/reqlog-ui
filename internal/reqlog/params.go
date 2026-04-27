@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var defaultLimit = 50
+
 type CMDArgs struct {
 	SearchValue string
 	Dir         string
@@ -19,8 +21,7 @@ type CMDArgs struct {
 	Source      string
 }
 
-func ParseParams(c *gin.Context) (*CMDArgs, error) {
-
+func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
 	recursive := c.DefaultQuery("recursive", "true") != "false"
 
 	dir, err := validateDir(c.DefaultQuery("dir", "./logs"))
@@ -52,13 +53,16 @@ func ParseParams(c *gin.Context) (*CMDArgs, error) {
 		SearchValue: validateQuery(c.Query("q")),
 		Dir:         dir,
 		IgnoreCase:  parseBool(c.Query("ignore_case")),
-		Limit:       validateLimit(c.DefaultQuery("limit", "50"), 50),
-		JSON:        parseBool(c.Query("json")),
-		Key:         key,
-		Since:       since,
-		Recursive:   recursive,
-		Service:     serviceVal,
-		Source:      source,
+		Limit: validateLimit(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)),
+			defaultLimit,
+			maxLines,
+		),
+		JSON:      parseBool(c.Query("json")),
+		Key:       key,
+		Since:     since,
+		Recursive: recursive,
+		Service:   serviceVal,
+		Source:    source,
 	}, nil
 }
 

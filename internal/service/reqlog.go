@@ -3,13 +3,12 @@ package service
 import (
 	"bufio"
 	"context"
-	"errors"
 	"io"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/limiter"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 )
 
@@ -19,7 +18,9 @@ type ReqlogService interface {
 }
 
 type reqlogService struct {
-	config *config.Reqlog
+	config        *config.Reqlog
+	searchLimiter *limiter.Limiter
+	streamLimiter *limiter.Limiter
 }
 
 type ReqlogServiceOpts struct {
@@ -27,79 +28,113 @@ type ReqlogServiceOpts struct {
 }
 
 func NewReqlogService(opts ReqlogServiceOpts) ReqlogService {
-	return &reqlogService{config: opts.Config}
+	return &reqlogService{
+		config:        opts.Config,
+		searchLimiter: limiter.New(opts.Config.SearchConcurrency),
+		streamLimiter: limiter.New(opts.Config.StreamConcurrency),
+	}
 }
 
 func (s *reqlogService) Run(ctx context.Context, params *reqlog.CMDArgs) ([]string, error) {
+	if !s.searchLimiter.TryAcquire() {
+		return nil, &TooManyRequestsError{
+			Message: "System is busy, try again shortly",
+			Active:  s.searchLimiter.Active(),
+			Limit:   s.searchLimiter.Limit(),
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, s.config.ExecutionTimeout)
+	defer cancel()
+
 	args := reqlog.BuildArgs(params, false)
 	cmd := exec.CommandContext(ctx, s.config.BinaryPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		s.searchLimiter.Release()
 		return nil, err
 	}
 	cmd.Stderr = cmd.Stdout
 
 	if err := cmd.Start(); err != nil {
+		s.searchLimiter.Release()
 		return nil, err
 	}
 
-	done := make(chan error, 1)
-	lines := make([]string, 0, 100)
+	type result struct {
+		lines []string
+		err   error
+	}
+
+	resCh := make(chan result, 1)
 
 	go func() {
+		defer s.searchLimiter.Release()
+
 		reader := bufio.NewReader(stdout)
+		lines := make([]string, 0, 50)
+
 		for {
 			line, err := reader.ReadString('\n')
-			if len(line) > 0 {
+
+			if len(lines) < s.config.MaxLines && len(line) > 0 {
 				lines = append(lines, strings.TrimRight(line, "\r\n"))
 			}
 
 			if err != nil {
-				if err == io.EOF {
-					break
+				if err != io.EOF {
+					resCh <- result{nil, err}
+					return
 				}
-				done <- err
 				break
 			}
 		}
-		done <- nil
+		err := cmd.Wait()
+		resCh <- result{lines, err}
 	}()
 
 	select {
-	case err := <-done:
-		if err != nil {
-			_ = cmd.Process.Kill()
-			return nil, err
+	case res := <-resCh:
+		if res.err != nil {
+			return nil, res.err
 		}
-		return lines, nil
+		return res.lines, nil
 
 	case <-ctx.Done():
 		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
 		return nil, ctx.Err()
-
-	case <-time.After(s.config.ExecutionTimeout):
-		_ = cmd.Process.Kill()
-		return nil, errors.New("reqlog execution timeout")
 	}
 }
 
 func (s *reqlogService) Stream(ctx context.Context, params *reqlog.CMDArgs, out chan<- string) (<-chan error, error) {
+	if !s.streamLimiter.TryAcquire() {
+		return nil, &TooManyRequestsError{
+			Message: "System is busy, try again shortly",
+			Active:  s.streamLimiter.Active(),
+			Limit:   s.streamLimiter.Limit(),
+		}
+	}
+
 	args := reqlog.BuildArgs(params, true)
 	cmd := exec.CommandContext(ctx, s.config.BinaryPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		s.streamLimiter.Release()
 		return nil, err
 	}
 	cmd.Stderr = cmd.Stdout
 
 	if err := cmd.Start(); err != nil {
+		s.streamLimiter.Release()
 		return nil, err
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
+		defer s.streamLimiter.Release()
 		defer close(out)
 
 		reader := bufio.NewReader(stdout)

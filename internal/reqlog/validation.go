@@ -29,9 +29,9 @@ func validateDir(dir string) (string, error) {
 	return absDir, nil
 }
 
-func validateLimit(s string, defaultVal int) int {
+func validateLimit(s string, defaultVal int, max int) int {
 	limit, err := strconv.Atoi(s)
-	if err != nil || limit < 0 || limit > 10000 {
+	if err != nil || limit < 0 || limit > max {
 		return defaultVal
 	}
 	return limit

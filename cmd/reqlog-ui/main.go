@@ -66,6 +66,7 @@ func main() {
 		Logger:        log,
 		ReqlogService: reqlogService,
 		TokenStore:    tokenStore,
+		ReqlogConfig:  cfg.Reqlog,
 	})
 	go func() {
 		err = httpServer.Serve()
@@ -79,7 +80,7 @@ func main() {
 	log.Warn("Shutdown signal received, closing services!")
 
 	httpCtx, httpCancel := context.WithTimeout(context.Background(), cfg.HTTPServer.ShutdownTimeout)
-	if err := httpServer.Server.Shutdown(httpCtx); err != nil {
+	if err := httpServer.Shutdown(httpCtx); err != nil {
 		log.Error("failed to close http server", logger.Field{Key: "error", Value: err.Error()})
 	}
 	httpCancel()
