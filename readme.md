@@ -4,7 +4,7 @@ A lightweight web UI for **[reqlog](https://github.com/SagarMaheshwary/reqlog)**
 
 It’s designed for small teams that want **quick visibility into logs without SSH access**.
 
-> reqlog-ui is in an early stage. Performance, security, UX will be improved in future releases.
+> reqlog-ui is a lightweight web UI intended for internal use within trusted environments (e.g. behind VPN).
 
 ## Features
 
@@ -119,7 +119,9 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 - SSE uses short-lived tokens for streaming due to token being passed in the querystring
 - Input validation is applied before executing CLI commands
 
-> ⚠️ This tool is intended for trusted/internal environments. It should not be exposed publicly without additional security layers (reverse proxy auth, HTTPS, etc.)
+> ⚠️ Intended for internal use within trusted environments (e.g. behind VPN).
+> This tool does not provide enterprise-grade authentication, authorization, or audit capabilities.
+> Do not expose it publicly without additional protections (e.g. reverse proxy auth, HTTPS, IP restrictions).
 
 ## Version Compatibility
 
