@@ -690,16 +690,16 @@
     <div class="workspace">
       <aside>
         <div class="field-group">
-          <label>Directory</label>
-          <input id="opt-dir" type="text" value="./logs" placeholder="./logs" />
-        </div>
-
-        <div class="field-group">
           <label>Source</label>
           <select id="opt-source">
             <option value="file">file</option>
             <option value="docker">docker</option>
           </select>
+        </div>
+
+        <div class="field-group" id="field-dir">
+          <label>Directory</label>
+          <input id="opt-dir" type="text" value="./logs" placeholder="./logs" />
         </div>
 
         <div class="field-group">
@@ -1198,7 +1198,6 @@
         stopStream();
         saveToQS();
         clearOutput();
-        showLoading("loading");
 
         let token;
         try {
@@ -1229,13 +1228,7 @@
         btnStop.style.display = "";
         setStatus("live", "live");
 
-        let isLoading = true;
         evtSource.onmessage = (e) => {
-          if (isLoading) {
-            hideLoading();
-            clearOutput();
-            isLoading = false;
-          }
           appendLine(e.data);
         };
         evtSource.addEventListener("done", () => {
@@ -1292,7 +1285,19 @@
       });
 
       // ── Init ─────────────────────────────────────────────────────────────────
+      function updateDirVisibility() {
+        const isFile = document.getElementById("opt-source").value === "file";
+        document.getElementById("field-dir").style.display = isFile
+          ? ""
+          : "none";
+      }
+
+      document
+        .getElementById("opt-source")
+        .addEventListener("change", updateDirVisibility);
+
       loadFromQS();
+      updateDirVisibility();
     </script>
   </body>
 </html>
