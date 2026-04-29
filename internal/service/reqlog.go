@@ -97,6 +97,10 @@ func (s *reqlogService) Run(ctx context.Context, params *reqlog.CMDArgs) ([]stri
 	select {
 	case res := <-resCh:
 		if res.err != nil {
+			if res.err != nil && len(res.lines) > 0 {
+				res.lines = append(res.lines, "[command failed]")
+				return res.lines, nil
+			}
 			return nil, res.err
 		}
 		return res.lines, nil
