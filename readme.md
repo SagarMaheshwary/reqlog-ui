@@ -6,6 +6,14 @@ It’s designed for small teams that want **quick visibility into logs without S
 
 > reqlog-ui is a lightweight web UI intended for internal use within trusted environments (e.g. behind VPN).
 
+<div style="display: flex; gap: 12px; flex-wrap: wrap;">
+
+  <img src="./assets/reqlog-ui-login.png" width="32%" />
+  <img src="./assets/reqlog-ui-search-logs.png" width="32%" />
+  <img src="./assets/reqlog-ui-live-logs.png" width="32%" />
+
+</div>
+
 ## Features
 
 - Search logs from browser (same power as reqlog CLI)
@@ -115,7 +123,8 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 ## Security Notes
 
 - API key is required for all operations
-- API key is stored in browser SessionStorage after login (session-only, not persistent storage)
+- API key is stored in browser SessionStorage after login
+  - HTTP-only cookie based authentication is planned as a replacement in a future release
 - SSE uses short-lived tokens for streaming due to token being passed in the querystring
 - Input validation is applied before executing CLI commands
 
@@ -128,6 +137,7 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 | reqlog-ui | reqlog |
 | --------- | ------ |
 | v0.2.0    | v0.2.2 |
+| v0.3.0    | v0.6.0 |
 
 > Ensure compatible versions for correct behavior.
 
