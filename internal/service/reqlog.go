@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/limiter"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 )
 
@@ -21,10 +22,12 @@ type reqlogService struct {
 	config        *config.Reqlog
 	searchLimiter *limiter.Limiter
 	streamLimiter *limiter.Limiter
+	logger        logger.Logger
 }
 
 type ReqlogServiceOpts struct {
 	Config *config.Reqlog
+	Logger logger.Logger
 }
 
 func NewReqlogService(opts ReqlogServiceOpts) ReqlogService {
@@ -32,6 +35,7 @@ func NewReqlogService(opts ReqlogServiceOpts) ReqlogService {
 		config:        opts.Config,
 		searchLimiter: limiter.New(opts.Config.SearchConcurrency),
 		streamLimiter: limiter.New(opts.Config.StreamConcurrency),
+		logger:        opts.Logger,
 	}
 }
 
@@ -48,6 +52,9 @@ func (s *reqlogService) Run(ctx context.Context, params *reqlog.CMDArgs) ([]stri
 	defer cancel()
 
 	args := reqlog.BuildArgs(params, false)
+
+	s.logReqlogCommand(args)
+
 	cmd := exec.CommandContext(ctx, s.config.BinaryPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -122,6 +129,9 @@ func (s *reqlogService) Stream(ctx context.Context, params *reqlog.CMDArgs, out 
 	}
 
 	args := reqlog.BuildArgs(params, true)
+
+	s.logReqlogCommand(args)
+
 	cmd := exec.CommandContext(ctx, s.config.BinaryPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -166,4 +176,12 @@ func (s *reqlogService) Stream(ctx context.Context, params *reqlog.CMDArgs, out 
 	}()
 
 	return errCh, nil
+}
+
+func (s *reqlogService) logReqlogCommand(args []string) {
+	cmdStr := s.config.BinaryPath + " " + strings.Join(args, " ")
+	s.logger.Info(
+		"Running reqlog",
+		logger.Field{Key: "command", Value: cmdStr},
+	)
 }

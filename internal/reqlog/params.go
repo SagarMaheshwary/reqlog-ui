@@ -1,24 +1,27 @@
 package reqlog
 
 import (
+	"slices"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-var defaultLimit = 50
+var defaultLimit = 25
 
 type CMDArgs struct {
 	SearchValue string
 	Dir         string
 	IgnoreCase  bool
 	Limit       int
-	JSON        bool
+	Latest      bool
+	Format      string
 	Key         string
 	Since       string
 	Recursive   bool
 	Service     string
 	Source      string
+	Output      string
 }
 
 func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
@@ -52,6 +55,16 @@ func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
 		}
 	}
 
+	format := c.DefaultQuery("format", "auto")
+	if !slices.Contains([]string{"auto", "text", "json"}, format) {
+		format = "auto"
+	}
+
+	output := c.DefaultQuery("output", "pretty")
+	if !slices.Contains([]string{"pretty", "json"}, output) {
+		output = "pretty"
+	}
+
 	return &CMDArgs{
 		SearchValue: validateQuery(c.Query("q")),
 		Dir:         dir,
@@ -60,12 +73,14 @@ func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
 			defaultLimit,
 			maxLines,
 		),
-		JSON:      parseBool(c.Query("json")),
+		Latest:    parseBool(c.Query("latest")),
 		Key:       key,
 		Since:     since,
 		Recursive: recursive,
 		Service:   service,
 		Source:    source,
+		Format:    format,
+		Output:    output,
 	}, nil
 }
 
@@ -81,8 +96,8 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	if p.Limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(p.Limit))
 	}
-	if p.JSON {
-		args = append(args, "--json")
+	if p.Latest {
+		args = append(args, "--latest")
 	}
 	if p.Key != "" {
 		args = append(args, "--key", p.Key)
@@ -98,6 +113,12 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	}
 	if p.Source != "" {
 		args = append(args, "--source", p.Source)
+	}
+	if p.Format != "" {
+		args = append(args, "--format", p.Format)
+	}
+	if p.Output != "" {
+		args = append(args, "--output", p.Output)
 	}
 	if follow {
 		args = append(args, "--follow")
