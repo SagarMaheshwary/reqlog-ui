@@ -58,6 +58,7 @@ func main() {
 
 	reqlogService := service.NewReqlogService(service.ReqlogServiceOpts{
 		Config: cfg.Reqlog,
+		Logger: log,
 	})
 	tokenStore := tokenstore.New(ctx, cfg.HTTPServer.StreamTokenExpiry)
 

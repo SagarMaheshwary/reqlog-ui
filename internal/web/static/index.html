@@ -283,6 +283,29 @@
         margin: 2px 0;
       }
 
+      /* ── sidebar section divider with title ──────────────────────────────── */
+      .sidebar-section {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0 2px;
+      }
+      .sidebar-section span {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        white-space: nowrap;
+        opacity: 0.6;
+      }
+      .sidebar-section::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
       /* ── output pane ─────────────────────────────────────────────────────── */
       main {
         flex: 1;
@@ -689,6 +712,41 @@
 
     <div class="workspace">
       <aside>
+        <div class="sidebar-section"><span>Query</span></div>
+
+        <div class="field-group">
+          <label>Search key</label>
+          <input id="opt-key" type="text" placeholder="request_id, trace_id…" />
+        </div>
+        <div class="field-group">
+          <label>Format</label>
+          <select id="opt-format">
+            <option value="auto">auto</option>
+            <option value="text">text</option>
+            <option value="json">json</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Output</label>
+          <select id="opt-output">
+            <option value="pretty">pretty</option>
+            <option value="json">json</option>
+          </select>
+        </div>
+
+        <div class="sidebar-section"><span>Time</span></div>
+
+        <div class="field-group">
+          <label>Since</label>
+          <input
+            id="opt-since"
+            type="text"
+            placeholder="5m, 1h, 24h, 2026-01-01T10:00"
+          />
+        </div>
+
+        <div class="sidebar-section"><span>Source</span></div>
+
         <div class="field-group">
           <label>Source</label>
           <select id="opt-source">
@@ -696,15 +754,13 @@
             <option value="docker">docker</option>
           </select>
         </div>
-
         <div class="field-group" id="field-dir">
           <label>Directory</label>
           <input id="opt-dir" type="text" value="./logs" placeholder="./logs" />
         </div>
-
         <div class="field-group">
           <label
-            >Service filter
+            >Services
             <span style="font-weight: 400; text-transform: none"
               >(comma-sep)</span
             ></label
@@ -716,22 +772,22 @@
           />
         </div>
 
-        <div class="field-group">
-          <label>Field key</label>
-          <input id="opt-key" type="text" placeholder="request_id, trace_id…" />
-        </div>
+        <div class="sidebar-section"><span>Results</span></div>
 
         <div class="field-group">
-          <label>Since</label>
-          <input id="opt-since" type="text" placeholder="5m, 1h, 24h…" />
+          <label>Limit</label>
+          <input id="opt-limit" type="number" min="1" value="25" />
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">Latest</span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-latest" /><span
+              class="slider"
+            ></span
+          ></label>
         </div>
 
-        <div class="field-group">
-          <label>Limit (newest N)</label>
-          <input id="opt-limit" type="number" min="1" value="50" />
-        </div>
-
-        <hr class="sidebar-divider" />
+        <div class="sidebar-section"><span>Options</span></div>
 
         <div class="toggle-row">
           <span class="toggle-label">Ignore case</span>
@@ -741,14 +797,6 @@
             ></span
           ></label>
         </div>
-
-        <div class="toggle-row">
-          <span class="toggle-label">JSON mode</span>
-          <label class="toggle"
-            ><input type="checkbox" id="opt-json" /><span class="slider"></span
-          ></label>
-        </div>
-
         <div class="toggle-row">
           <span class="toggle-label">Recursive</span>
           <label class="toggle"
@@ -757,6 +805,8 @@
             ></span
           ></label>
         </div>
+
+        <div class="sidebar-section"><span>Live</span></div>
 
         <div class="toggle-row">
           <span class="toggle-label">Auto-scroll</span>
@@ -1023,10 +1073,13 @@
         { id: "q", qs: "q", type: "text" },
         { id: "opt-dir", qs: "dir", type: "text" },
         { id: "opt-source", qs: "source", type: "select" },
+        { id: "opt-format", qs: "format", type: "select" },
+        { id: "opt-output", qs: "output", type: "select" },
         { id: "opt-service", qs: "service", type: "text" },
         { id: "opt-key", qs: "key", type: "text" },
         { id: "opt-since", qs: "since", type: "text" },
         { id: "opt-limit", qs: "limit", type: "number" },
+        { id: "opt-latest", qs: "latest", type: "checkbox" },
         { id: "opt-ignore-case", qs: "ignore_case", type: "checkbox" },
         { id: "opt-json", qs: "json", type: "checkbox" },
         { id: "opt-recursive", qs: "recursive", type: "checkbox" },
