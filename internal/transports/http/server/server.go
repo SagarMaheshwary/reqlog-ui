@@ -12,7 +12,6 @@ import (
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
-	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/handler"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server/middleware"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/web"
@@ -22,7 +21,6 @@ type Opts struct {
 	Config        *config.HTTPServer
 	Logger        logger.Logger
 	ReqlogService service.ReqlogService
-	TokenStore    *tokenstore.Store
 	ReqlogConfig  *config.Reqlog
 }
 
@@ -56,23 +54,31 @@ func NewServer(opts *Opts) *HTTPServer {
 
 	r.StaticFS("/static", http.FS(sub))
 
-	r.GET("/", serveHTML(sub, "index.html"))
-	r.GET("/login", serveHTML(sub, "login.html"))
+	r.GET("/", func(c *gin.Context) {
+		if !handler.IsAuthenticated(c, []byte(opts.Config.JWTSecret)) {
+			c.Redirect(http.StatusTemporaryRedirect, "/login")
+			return
+		}
+		serveHTML(c, sub, "index.html")
+	})
+	r.GET("/login", func(c *gin.Context) {
+		if handler.IsAuthenticated(c, []byte(opts.Config.JWTSecret)) {
+			c.Redirect(http.StatusTemporaryRedirect, "/")
+			return
+		}
+		serveHTML(c, sub, "login.html")
+	})
 
 	api := r.Group("/api")
 
 	authHandler := handler.NewAuthHandler(&handler.AuthHandlerOpts{
-		APIKey:     opts.Config.APIKey,
-		TokenStore: opts.TokenStore,
+		Config: opts.Config,
 	})
 	api.POST("/auth/token", authHandler.Token)
 
 	protected := api.Group("/")
-	protected.Use(middleware.APIKeyAuth(opts.Config.APIKey))
+	protected.Use(middleware.AuthMiddleware([]byte(opts.Config.JWTSecret)))
 	{
-		// Issues an expirable single-use token for the SSE endpoint
-		protected.POST("/auth/stream-token", authHandler.StreamToken)
-
 		reqlogHandler := handler.NewReqlogHandler(&handler.ReqlogHandlerOpts{
 			ReqlogService: opts.ReqlogService,
 			Logger:        opts.Logger,
@@ -80,11 +86,9 @@ func NewServer(opts *Opts) *HTTPServer {
 		})
 
 		protected.GET("/logs", reqlogHandler.Logs)
-		// SSE uses its own token-based auth so the API key never hits a URL
-		api.GET("/logs/stream",
-			middleware.StreamTokenAuth(opts.TokenStore),
-			reqlogHandler.LogsStream,
-		)
+		protected.GET("/logs/stream", reqlogHandler.LogsStream)
+
+		protected.POST("/auth/logout", authHandler.Logout)
 	}
 
 	return &HTTPServer{
@@ -126,13 +130,11 @@ func (h *HTTPServer) Shutdown(ctx context.Context) error {
 	return h.server.Shutdown(ctx)
 }
 
-func serveHTML(sub fs.FS, file string) func(c *gin.Context) {
-	return func(c *gin.Context) {
-		data, err := fs.ReadFile(sub, file)
-		if err != nil {
-			c.Status(http.StatusInternalServerError)
-			return
-		}
-		c.Data(200, "text/html; charset=utf-8", data)
+func serveHTML(c *gin.Context, sub fs.FS, file string) {
+	data, err := fs.ReadFile(sub, file)
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
 	}
+	c.Data(200, "text/html; charset=utf-8", data)
 }

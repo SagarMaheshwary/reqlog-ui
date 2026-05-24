@@ -15,7 +15,6 @@ import (
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
-	"github.com/sagarmaheshwary/reqlog-ui/internal/tokenstore"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/transports/http/server"
 )
 
@@ -60,13 +59,11 @@ func main() {
 		Config: cfg.Reqlog,
 		Logger: log,
 	})
-	tokenStore := tokenstore.New(ctx, cfg.HTTPServer.StreamTokenExpiry)
 
 	httpServer := server.NewServer(&server.Opts{
 		Config:        cfg.HTTPServer,
 		Logger:        log,
 		ReqlogService: reqlogService,
-		TokenStore:    tokenStore,
 		ReqlogConfig:  cfg.Reqlog,
 	})
 	go func() {
