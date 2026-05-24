@@ -29,12 +29,13 @@ type Reqlog struct {
 }
 
 type HTTPServer struct {
-	URL               string
-	ShutdownTimeout   time.Duration
-	GinMode           string
-	Logger            bool
-	APIKey            string
-	StreamTokenExpiry time.Duration
+	URL             string
+	ShutdownTimeout time.Duration
+	GinMode         string
+	Logger          bool
+	APIKey          string
+	JWTSecret       string
+	HTTPS           bool
 }
 
 func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
@@ -59,12 +60,13 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 
 	cfg := &Config{
 		HTTPServer: &HTTPServer{
-			URL:               getEnv("HTTP_SERVER_URL", "localhost:4000"),
-			ShutdownTimeout:   getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
-			GinMode:           getEnv("HTTP_GIN_MODE", "release"),
-			Logger:            getEnvBool("HTTP_LOGGER_ENABLED", false),
-			APIKey:            getEnv("HTTP_AUTH_API_KEY", ""),
-			StreamTokenExpiry: getEnvDuration("HTTP_STREAM_TOKEN_EXPIRY", 30*time.Second),
+			URL:             getEnv("HTTP_SERVER_URL", "localhost:4000"),
+			ShutdownTimeout: getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
+			GinMode:         getEnv("HTTP_GIN_MODE", "release"),
+			Logger:          getEnvBool("HTTP_LOGGER_ENABLED", false),
+			APIKey:          getEnv("HTTP_AUTH_API_KEY", ""),
+			JWTSecret:       getEnv("HTTP_AUTH_JWT_SECRET", ""),
+			HTTPS:           getEnvBool("HTTP_HTTPS", false),
 		},
 		Reqlog: &Reqlog{
 			BinaryPath:        getEnv("REQLOG_BINARY_PATH", "reqlog"),
