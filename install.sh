@@ -4,12 +4,27 @@ set -e
 
 REPO="sagarmaheshwary/reqlog-ui"
 INSTALL_PATH="/usr/local/bin/reqlog-ui"
+REQUIRED="v0.6.0"
 
 # Check reqlog binary
 if ! command -v reqlog >/dev/null 2>&1; then
   echo "reqlog is required for reqlog-ui."
-  echo "Install it using:"
-  echo "curl -sSL https://raw.githubusercontent.com/sagarmaheshwary/reqlog/master/install.sh | bash"
+  echo
+  echo "Install compatible version:"
+  echo "curl -sSL https://raw.githubusercontent.com/sagarmaheshwary/reqlog/master/install.sh | bash -s $REQUIRED"
+  exit 1
+fi
+
+REQLOG_VERSION=$(reqlog --version | awk '{print $3}')
+
+echo "Detected reqlog version: $REQLOG_VERSION"
+echo "reqlog-ui requires reqlog >= $REQUIRED"
+
+if [ "$(printf '%s\n' "$REQUIRED" "$REQLOG_VERSION" | sort -V | head -n1)" != "$REQUIRED" ]; then
+  echo
+  echo "Incompatible reqlog version detected."
+  echo "Please upgrade reqlog:"
+  echo "curl -sSL https://raw.githubusercontent.com/sagarmaheshwary/reqlog/master/install.sh | bash -s $REQUIRED"
   exit 1
 fi
 
