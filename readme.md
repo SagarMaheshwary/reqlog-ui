@@ -4,7 +4,7 @@ A lightweight web UI for **[reqlog](https://github.com/SagarMaheshwary/reqlog)**
 
 It’s designed for small teams that want **quick visibility into logs without SSH access**.
 
-> reqlog-ui is a lightweight web UI intended for internal use within trusted environments (e.g. behind VPN).
+## Screenshots
 
 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
 
@@ -108,7 +108,7 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 | `HTTP_SERVER_URL`           | Address the server listens on               | `localhost:4000` |
 | `REQLOG_BINARY_PATH`        | Path to reqlog binary                       | `reqlog`         |
 | `REQLOG_EXECUTION_TIMEOUT`  | Max time allowed for log search execution   | `15m`            |
-| `HTTP_STREAM_TOKEN_EXPIRY`  | Expiry for SSE stream tokens                | `30s`            |
+| `HTTP_AUTH_JWT_SECRET`      | JWT secret key for auth cookie              | **required**     |
 | `REQLOG_MAX_LINES`          | Max number of log lines returned per search | `5000`           |
 | `REQLOG_SEARCH_CONCURRENCY` | Max concurrent search requests              | `5`              |
 | `REQLOG_STREAM_CONCURRENCY` | Max concurrent live stream connections      | `5`              |
@@ -122,22 +122,20 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 
 ## Security Notes
 
-- API key is required for all operations
-- API key is stored in browser SessionStorage after login
-  - HTTP-only cookie based authentication is planned as a replacement in a future release
-- SSE uses short-lived tokens for streaming due to token being passed in the querystring
+- Login is performed using an API key, which is exchanged for a JWT-based HTTP-only cookie session
+- API key is not stored in the browser; sessions are maintained via secure cookies
+- SSE (live streaming) uses cookie-based authentication instead of query parameters
 - Input validation is applied before executing CLI commands
 
-> ⚠️ Intended for internal use within trusted environments (e.g. behind VPN).
-> This tool does not provide enterprise-grade authentication, authorization, or audit capabilities.
-> Do not expose it publicly without additional protections (e.g. reverse proxy auth, HTTPS, IP restrictions).
+> ⚠️ Intended for use in trusted/internal environments (e.g. behind VPN or private networks).
+> Logs may contain sensitive information, so avoid exposing this tool publicly without proper safeguards such as authentication, HTTPS, or network restrictions.
 
 ## Version Compatibility
 
-| reqlog-ui | reqlog |
-| --------- | ------ |
-| v0.2.0    | v0.2.2 |
-| v0.3.0    | v0.6.0 |
+| reqlog-ui      | reqlog |
+| -------------- | ------ |
+| v0.2.0         | v0.2.2 |
+| v0.3.0, v0.3.1 | v0.6.0 |
 
 > Ensure compatible versions for correct behavior.
 
