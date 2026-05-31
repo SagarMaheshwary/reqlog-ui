@@ -30,7 +30,7 @@ type ReqlogServiceOpts struct {
 	Logger logger.Logger
 }
 
-func NewReqlogService(opts ReqlogServiceOpts) ReqlogService {
+func NewReqlogService(opts *ReqlogServiceOpts) ReqlogService {
 	return &reqlogService{
 		config:        opts.Config,
 		searchLimiter: limiter.New(opts.Config.SearchConcurrency),

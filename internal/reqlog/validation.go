@@ -2,8 +2,6 @@ package reqlog
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,20 +11,16 @@ import (
 var keyPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 var servicePattern = regexp.MustCompile(`^[a-zA-Z0-9\-\*,]+$`)
 
-func validateDir(dir string) (string, error) {
-	clean := filepath.Clean(dir)
-
-	absDir, err := filepath.Abs(clean)
-	if err != nil {
-		return "", errors.New("invalid directory path")
+func validateDir(dir string, allowedDirs map[string]string) (string, error) {
+	if dir == "" {
+		return "", errors.New("directory is required")
 	}
-
-	info, err := os.Stat(absDir)
-	if err != nil || !info.IsDir() {
-		return "", errors.New("directory does not exist")
+	for k, allowedDir := range allowedDirs {
+		if dir == k {
+			return allowedDir, nil
+		}
 	}
-
-	return absDir, nil
+	return "", errors.New("directory not allowed")
 }
 
 func validateLimit(s string, defaultVal int, max int) int {

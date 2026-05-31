@@ -34,7 +34,7 @@ func NewReqlogHandler(opts *ReqlogHandlerOpts) *ReqlogHandler {
 }
 
 func (h *ReqlogHandler) Logs(c *gin.Context) {
-	params, err := reqlog.ParseParams(c, h.config.MaxLines)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines, h.config.AllowedDirectories)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -65,7 +65,7 @@ func (h *ReqlogHandler) Logs(c *gin.Context) {
 }
 
 func (h *ReqlogHandler) LogsStream(c *gin.Context) {
-	params, err := reqlog.ParseParams(c, h.config.MaxLines)
+	params, err := reqlog.ParseParams(c, h.config.MaxLines, h.config.AllowedDirectories)
 	if err != nil {
 		fmt.Fprintf(c.Writer, "event: error\ndata: %s\n\n", err.Error())
 		c.Writer.Flush()

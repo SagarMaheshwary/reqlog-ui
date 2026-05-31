@@ -4,7 +4,7 @@ set -e
 
 REPO="sagarmaheshwary/reqlog-ui"
 INSTALL_PATH="/usr/local/bin/reqlog-ui"
-REQUIRED="v0.6.0"
+REQUIRED="v0.7.1"
 
 # Check reqlog binary
 if ! command -v reqlog >/dev/null 2>&1; then

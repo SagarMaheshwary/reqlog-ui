@@ -703,6 +703,106 @@
         border-color: var(--danger);
         opacity: 1;
       }
+
+      /* ── multiselect dropdown ─────────────────────────────────────────────── */
+      .multiselect {
+        position: relative;
+      }
+      .ms-trigger {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 7px 10px;
+        cursor: pointer;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text);
+        transition: border-color 0.15s;
+        user-select: none;
+      }
+      .ms-trigger:hover {
+        border-color: var(--accent);
+      }
+      .ms-arrow {
+        font-size: 0.65rem;
+        color: var(--text-dim);
+        margin-left: 6px;
+      }
+      .ms-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .ms-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        z-index: 100;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+      }
+      .ms-search-wrap {
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ms-search {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 5px 8px;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--text);
+        outline: none;
+      }
+      .ms-search:focus {
+        border-color: var(--accent);
+      }
+      .ms-list {
+        max-height: 180px;
+        overflow-y: auto;
+      }
+      .ms-list::-webkit-scrollbar {
+        width: 4px;
+      }
+      .ms-list::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .ms-list::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 2px;
+      }
+      .ms-item {
+        padding: 7px 10px;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        cursor: pointer;
+        transition:
+          background 0.1s,
+          color 0.1s;
+      }
+      .ms-item:hover {
+        background: var(--surface);
+        color: var(--text);
+      }
+      .ms-item.selected {
+        color: var(--accent);
+      }
+      .ms-item.selected::before {
+        content: "✓ ";
+        font-size: 0.7rem;
+      }
     </style>
   </head>
   <body>
@@ -774,20 +874,30 @@
         </div>
         <div class="field-group" id="field-dir">
           <label>Directory</label>
-          <input id="opt-dir" type="text" value="./logs" placeholder="./logs" />
+          <select id="opt-dir">
+            <option value="">loading…</option>
+          </select>
         </div>
         <div class="field-group">
-          <label
-            >Services
-            <span style="font-weight: 400; text-transform: none"
-              >(comma-sep)</span
-            ></label
-          >
-          <input
-            id="opt-service"
-            type="text"
-            placeholder="order-service,inventory-service"
-          />
+          <label>Services</label>
+          <div class="multiselect" id="ms-service">
+            <div class="ms-trigger" id="ms-trigger">
+              <span class="ms-label">All</span>
+              <span class="ms-arrow">▾</span>
+            </div>
+            <div class="ms-dropdown" id="ms-dropdown" style="display: none">
+              <div class="ms-search-wrap">
+                <input
+                  class="ms-search"
+                  id="ms-search"
+                  type="text"
+                  placeholder="filter…"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="ms-list" id="ms-list"></div>
+            </div>
+          </div>
         </div>
 
         <div class="sidebar-section"><span>Results</span></div>
@@ -1066,7 +1176,6 @@
         { id: "opt-source", qs: "source", type: "select" },
         { id: "opt-format", qs: "format", type: "select" },
         { id: "opt-output", qs: "output", type: "select" },
-        { id: "opt-service", qs: "service", type: "text" },
         { id: "opt-key", qs: "key", type: "text" },
         { id: "opt-since", qs: "since", type: "text" },
         { id: "opt-limit", qs: "limit", type: "number" },
@@ -1105,6 +1214,9 @@
           const v = f.type === "checkbox" ? String(el.checked) : el.value;
           p.set(f.qs, v);
         }
+        // services come from the multiselect, not QS_FIELDS
+        const svcs = msGetSelected();
+        if (svcs.length) p.set("service", svcs.join(","));
         return p;
       }
 
@@ -1297,6 +1409,194 @@
         }
       }
 
+      // ── Multiselect ──────────────────────────────────────────────────────────
+      let msSelected = new Set(); // empty = "all"
+
+      function msRender(items) {
+        const list = document.getElementById("ms-list");
+        const search = (
+          document.getElementById("ms-search").value || ""
+        ).toLowerCase();
+        const visible = items.filter((i) => i.toLowerCase().includes(search));
+        list.innerHTML = "";
+
+        // "All" option
+        const allEl = document.createElement("div");
+        allEl.className =
+          "ms-item" + (msSelected.size === 0 ? " selected" : "");
+        allEl.textContent = "All";
+        allEl.dataset.value = "";
+        list.appendChild(allEl);
+
+        for (const item of visible) {
+          const el = document.createElement("div");
+          el.className = "ms-item" + (msSelected.has(item) ? " selected" : "");
+          el.textContent = item;
+          el.dataset.value = item;
+          list.appendChild(el);
+        }
+      }
+
+      function msUpdateLabel() {
+        const label =
+          document.getElementById("ms-label") ||
+          document.querySelector("#ms-trigger .ms-label");
+        if (msSelected.size === 0) {
+          label.textContent = "All";
+        } else if (msSelected.size <= 2) {
+          label.textContent = [...msSelected].join(", ");
+        } else {
+          label.textContent = `${msSelected.size} selected`;
+        }
+        saveToQS();
+      }
+
+      function msGetSelected() {
+        return msSelected.size === 0 ? [] : [...msSelected];
+      }
+
+      function msSetFromString(str) {
+        msSelected.clear();
+        if (str && str !== "all") {
+          str
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .forEach((s) => msSelected.add(s));
+        }
+      }
+
+      let msItems = [];
+
+      document.getElementById("ms-list").addEventListener("click", (e) => {
+        const item = e.target.closest(".ms-item");
+        if (!item) return;
+        const val = item.dataset.value;
+        if (val === "") {
+          msSelected.clear();
+        } else {
+          if (msSelected.has(val)) msSelected.delete(val);
+          else msSelected.add(val);
+        }
+        msRender(msItems);
+        msUpdateLabel();
+      });
+
+      document.getElementById("ms-trigger").addEventListener("click", () => {
+        const dd = document.getElementById("ms-dropdown");
+        const open = dd.style.display !== "none";
+        dd.style.display = open ? "none" : "";
+        if (!open) document.getElementById("ms-search").focus();
+      });
+
+      document
+        .getElementById("ms-search")
+        .addEventListener("input", () => msRender(msItems));
+
+      // Close dropdown on outside click
+      document.addEventListener("click", (e) => {
+        if (!document.getElementById("ms-service").contains(e.target)) {
+          document.getElementById("ms-dropdown").style.display = "none";
+        }
+      });
+
+      function msLoad(items) {
+        msItems = items;
+        msRender(items);
+        msUpdateLabel();
+      }
+
+      // ── Options API loaders ───────────────────────────────────────────────────
+      async function loadDirectories() {
+        const sel = document.getElementById("opt-dir");
+        sel.innerHTML = '<option value="">loading…</option>';
+        try {
+          const res = await fetch("/api/options/directories");
+          const data = await res.json();
+          const dirs = data.directories || data || [];
+          sel.innerHTML = dirs
+            .map((d) => `<option value="${d}">${d}</option>`)
+            .join("");
+          // restore from QS if possible
+          const qsDir = new URLSearchParams(window.location.search).get("dir");
+          if (qsDir && [...sel.options].some((o) => o.value === qsDir))
+            sel.value = qsDir;
+          else if (dirs.length) sel.value = dirs[0];
+          await loadFiles(sel.value);
+        } catch {
+          sel.innerHTML = '<option value="./logs">./logs</option>';
+        }
+      }
+
+      async function loadFiles(dir) {
+        if (!dir) {
+          msLoad([]);
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            "/api/options/files?directory=" + encodeURIComponent(dir),
+          );
+          const data = await res.json();
+          const files = data.files || data || [];
+          // restore selection from QS
+          const qsSvc = new URLSearchParams(window.location.search).get(
+            "service",
+          );
+          msSelected.clear();
+          if (qsSvc)
+            qsSvc
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .forEach((s) => msSelected.add(s));
+          msLoad(files);
+        } catch {
+          msLoad([]);
+        }
+      }
+
+      async function loadContainers() {
+        try {
+          const res = await fetch("/api/options/containers");
+          const data = await res.json();
+          const containers = data.containers || data || [];
+          const qsSvc = new URLSearchParams(window.location.search).get(
+            "service",
+          );
+          msSelected.clear();
+          if (qsSvc)
+            qsSvc
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .forEach((s) => msSelected.add(s));
+          msLoad(containers);
+        } catch {
+          msLoad([]);
+        }
+      }
+
+      function updateSourceView() {
+        const isFile = document.getElementById("opt-source").value === "file";
+        document.getElementById("field-dir").style.display = isFile
+          ? ""
+          : "none";
+        if (isFile) loadDirectories();
+        else loadContainers();
+      }
+
+      document.getElementById("opt-source").addEventListener("change", () => {
+        msSelected.clear();
+        updateSourceView();
+      });
+
+      document.getElementById("opt-dir").addEventListener("change", (e) => {
+        msSelected.clear();
+        loadFiles(e.target.value);
+      });
+
       // ── Events ───────────────────────────────────────────────────────────────
       btnRun.addEventListener("click", runSearch);
       btnStream.addEventListener("click", startStream);
@@ -1321,7 +1621,6 @@
         });
       });
 
-      // ── Init ─────────────────────────────────────────────────────────────────
       function updateDirVisibility() {
         const isFile = document.getElementById("opt-source").value === "file";
         document.getElementById("field-dir").style.display = isFile
@@ -1333,8 +1632,10 @@
         .getElementById("opt-source")
         .addEventListener("change", updateDirVisibility);
 
+      // ── Init ─────────────────────────────────────────────────────────────────
       loadFromQS();
       updateDirVisibility();
+      updateSourceView();
     </script>
   </body>
 </html>
