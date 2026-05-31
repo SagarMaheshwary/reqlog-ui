@@ -102,18 +102,56 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 
 ## Configuration
 
-| Variable                    | Description                                 | Default          |
-| --------------------------- | ------------------------------------------- | ---------------- |
-| `HTTP_AUTH_API_KEY`         | API key required to access the UI           | **required**     |
-| `HTTP_SERVER_URL`           | Address the server listens on               | `localhost:4000` |
-| `REQLOG_BINARY_PATH`        | Path to reqlog binary                       | `reqlog`         |
-| `REQLOG_EXECUTION_TIMEOUT`  | Max time allowed for log search execution   | `15m`            |
-| `HTTP_AUTH_JWT_SECRET`      | JWT secret key for auth cookie              | **required**     |
-| `REQLOG_MAX_LINES`          | Max number of log lines returned per search | `5000`           |
-| `REQLOG_SEARCH_CONCURRENCY` | Max concurrent search requests              | `5`              |
-| `REQLOG_STREAM_CONCURRENCY` | Max concurrent live stream connections      | `5`              |
-| `ENV_FILE`                  | .env path                                   | `.env`           |
-| `DISABLE_PRETTY_LOGS`       | disable pretty logs and output raw JSON     | `0`              |
+| Variable                      | Description                                                    | Default                  |
+| ----------------------------- | -------------------------------------------------------------- | ------------------------ |
+| `HTTP_AUTH_API_KEY`           | API key required to access the UI login                        | **required**             |
+| `HTTP_AUTH_JWT_SECRET`        | JWT secret key for HTTP-only auth cookie                       | **required**             |
+| `HTTP_SERVER_URL`             | Address the server listens on                                  | `localhost:4000`         |
+| `REQLOG_BINARY_PATH`          | Path to reqlog binary                                          | `reqlog`                 |
+| `REQLOG_EXECUTION_TIMEOUT`    | Max time allowed for log search execution                      | `15m`                    |
+| `REQLOG_MAX_LINES`            | Max number of log lines returned per search                    | `5000`                   |
+| `REQLOG_SEARCH_CONCURRENCY`   | Max concurrent search requests                                 | `5`                      |
+| `REQLOG_STREAM_CONCURRENCY`   | Max concurrent live stream connections                         | `5`                      |
+| `REQLOG_ALLOWED_DIRECTORIES`  | Allowed log directories shown in UI (`name:path` comma format) | `reqlog:/var/log/reqlog` |
+| `REQLOG_DOCKER_SERVICES_MODE` | Container source mode: `auto` or `manual`                      | `auto`                   |
+| `REQLOG_DOCKER_SERVICES`      | Container names for manual mode (`comma-separated`)            | empty                    |
+| `ENV_FILE`                    | `.env` path                                                    | `.env`                   |
+| `DISABLE_PRETTY_LOGS`         | Disable pretty logs and output raw JSON                        | `0`                      |
+
+### Directory Configuration
+
+Predefine searchable log directories shown in the UI:
+
+```env
+REQLOG_ALLOWED_DIRECTORIES=reqlog:/var/log/reqlog,app:/path/to/app/logs
+```
+
+This limits searchable locations and avoids arbitrary filesystem access.
+
+### Docker Services Configuration
+
+#### Auto mode (recommended)
+
+Automatically loads running containers:
+
+```env
+REQLOG_DOCKER_SERVICES_MODE=auto
+```
+
+Uses:
+
+```bash
+docker ps --format '{{.Names}}'
+```
+
+#### Manual mode
+
+Provide a predefined list of allowed services:
+
+```env
+REQLOG_DOCKER_SERVICES_MODE=manual
+REQLOG_DOCKER_SERVICES=order-service,inventory-service,payment-service
+```
 
 > See `.env.example` for all available environment variables.
 
@@ -136,6 +174,7 @@ Browser → reqlog-ui → reqlog CLI → log files/containers
 | -------------- | ------ |
 | v0.2.0         | v0.2.2 |
 | v0.3.0, v0.3.1 | v0.6.0 |
+| v0.4.0         | v0.7.1 |
 
 > Ensure compatible versions for correct behavior.
 
