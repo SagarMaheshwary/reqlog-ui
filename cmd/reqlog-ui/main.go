@@ -55,16 +55,21 @@ func main() {
 		log.Fatal(err.Error())
 	}
 
-	reqlogService := service.NewReqlogService(service.ReqlogServiceOpts{
+	reqlogService := service.NewReqlogService(&service.ReqlogServiceOpts{
+		Config: cfg.Reqlog,
+		Logger: log,
+	})
+	optionsService := service.NewOptionsService(&service.OptionsServiceOpts{
 		Config: cfg.Reqlog,
 		Logger: log,
 	})
 
 	httpServer := server.NewServer(&server.Opts{
-		Config:        cfg.HTTPServer,
-		Logger:        log,
-		ReqlogService: reqlogService,
-		ReqlogConfig:  cfg.Reqlog,
+		Config:         cfg.HTTPServer,
+		Logger:         log,
+		ReqlogService:  reqlogService,
+		ReqlogConfig:   cfg.Reqlog,
+		OptionsService: optionsService,
 	})
 	go func() {
 		err = httpServer.Serve()

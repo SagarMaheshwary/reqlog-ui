@@ -24,7 +24,7 @@ type CMDArgs struct {
 	Output      string
 }
 
-func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
+func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*CMDArgs, error) {
 	recursive := c.DefaultQuery("recursive", "true") != "false"
 
 	service, err := validateService(c.Query("service"))
@@ -49,7 +49,7 @@ func ParseParams(c *gin.Context, maxLines int) (*CMDArgs, error) {
 
 	dir := ""
 	if source == "file" {
-		dir, err = validateDir(c.DefaultQuery("dir", "./logs"))
+		dir, err = validateDir(c.DefaultQuery("dir", "./logs"), allowedDirs)
 		if err != nil {
 			return nil, err
 		}

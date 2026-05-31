@@ -18,10 +18,11 @@ import (
 )
 
 type Opts struct {
-	Config        *config.HTTPServer
-	Logger        logger.Logger
-	ReqlogService service.ReqlogService
-	ReqlogConfig  *config.Reqlog
+	Config         *config.HTTPServer
+	Logger         logger.Logger
+	ReqlogService  service.ReqlogService
+	OptionsService *service.OptionsService
+	ReqlogConfig   *config.Reqlog
 }
 
 type HTTPServer struct {
@@ -87,6 +88,15 @@ func NewServer(opts *Opts) *HTTPServer {
 
 		protected.GET("/logs", reqlogHandler.Logs)
 		protected.GET("/logs/stream", reqlogHandler.LogsStream)
+
+		optionsHandler := handler.NewOptionsHandler(&handler.OptionsHandlerOpts{
+			Logger:         opts.Logger,
+			OptionsService: opts.OptionsService,
+		})
+
+		protected.GET("/options/directories", optionsHandler.ListDirectories)
+		protected.GET("/options/files", optionsHandler.ListFiles)
+		protected.GET("/options/containers", optionsHandler.ListContainers)
 
 		protected.POST("/auth/logout", authHandler.Logout)
 	}

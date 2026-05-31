@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofor-little/env"
@@ -21,11 +22,14 @@ type Config struct {
 }
 
 type Reqlog struct {
-	BinaryPath        string
-	ExecutionTimeout  time.Duration
-	MaxLines          int
-	SearchConcurrency int
-	StreamConcurrency int
+	BinaryPath         string
+	ExecutionTimeout   time.Duration
+	MaxLines           int
+	SearchConcurrency  int
+	StreamConcurrency  int
+	AllowedDirectories map[string]string
+	DockerServicesMode string
+	DockerServices     []string
 }
 
 type HTTPServer struct {
@@ -74,6 +78,19 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 			MaxLines:          getEnvInt("REQLOG_MAX_LINES", 5000),
 			SearchConcurrency: getEnvInt("REQLOG_SEARCH_CONCURRENCY", 5),
 			StreamConcurrency: getEnvInt("REQLOG_STREAM_CONCURRENCY", 5),
+			AllowedDirectories: func() map[string]string {
+				dirs := getEnv("REQLOG_ALLOWED_DIRECTORIES", "logs:/var/log/reqlog")
+				dirMap := make(map[string]string)
+				for pair := range strings.SplitSeq(dirs, ",") {
+					parts := strings.Split(pair, ":")
+					if len(parts) == 2 {
+						dirMap[parts[0]] = parts[1]
+					}
+				}
+				return dirMap
+			}(),
+			DockerServicesMode: getEnv("REQLOG_DOCKER_SERVICES_MODE", "auto"),
+			DockerServices:     strings.Split(getEnv("REQLOG_DOCKER_SERVICES", ""), ","),
 		},
 	}
 
