@@ -14,6 +14,7 @@ type CMDArgs struct {
 	Dir         string
 	IgnoreCase  bool
 	Limit       int
+	Context     int
 	Latest      bool
 	Format      string
 	Key         string
@@ -81,6 +82,7 @@ func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*
 		Source:    source,
 		Format:    format,
 		Output:    output,
+		Context:   validateLimit(c.DefaultQuery("context", "0"), 0, maxLines),
 	}, nil
 }
 
@@ -123,6 +125,10 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	if follow {
 		args = append(args, "--follow")
 	}
+	if p.Context > 0 {
+		args = append(args, "--context", strconv.Itoa(p.Context))
+	}
+
 	// Search value goes last.
 	if p.SearchValue != "" {
 		args = append(args, p.SearchValue)

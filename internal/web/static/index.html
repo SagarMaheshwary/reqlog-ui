@@ -914,6 +914,10 @@
             ></span
           ></label>
         </div>
+        <div class="field-group">
+          <label>Context Lines</label>
+          <input id="opt-context" type="number" min="0" value="0" />
+        </div>
 
         <div class="sidebar-section"><span>Options</span></div>
 
@@ -1180,6 +1184,7 @@
         { id: "opt-since", qs: "since", type: "text" },
         { id: "opt-limit", qs: "limit", type: "number" },
         { id: "opt-latest", qs: "latest", type: "checkbox" },
+        { id: "opt-context", qs: "context", type: "number" },
         { id: "opt-ignore-case", qs: "ignore_case", type: "checkbox" },
         { id: "opt-json", qs: "json", type: "checkbox" },
         { id: "opt-recursive", qs: "recursive", type: "checkbox" },
