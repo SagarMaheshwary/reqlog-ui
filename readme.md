@@ -161,7 +161,6 @@ REQLOG_DOCKER_SERVICES=order-service,inventory-service,payment-service
 ## Security Notes
 
 - Login is performed using an API key, which is exchanged for a JWT-based HTTP-only cookie session
-- API key is not stored in the browser; sessions are maintained via secure cookies
 - SSE (live streaming) uses cookie-based authentication instead of query parameters
 - Input validation is applied before executing CLI commands
 
@@ -175,6 +174,7 @@ REQLOG_DOCKER_SERVICES=order-service,inventory-service,payment-service
 | v0.2.0         | v0.2.2 |
 | v0.3.0, v0.3.1 | v0.6.0 |
 | v0.4.0         | v0.7.1 |
+| v0.5.0         | v0.9.0 |
 
 > Ensure compatible versions for correct behavior.
 
