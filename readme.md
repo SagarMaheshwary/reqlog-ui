@@ -174,13 +174,23 @@ REQLOG_DOCKER_SERVICES=order-service,inventory-service,payment-service
 | v0.2.0         | v0.2.2 |
 | v0.3.0, v0.3.1 | v0.6.0 |
 | v0.4.0         | v0.7.1 |
+| v0.5.0         | v0.9.0 |
 
 > Ensure compatible versions for correct behavior.
 
-## Contributing
+## Support & Contributions
 
-Contributions, issues, and suggestions are welcome.
+If you find this project useful, consider giving it a ⭐ — it helps others discover it.
+
+Feedback, contributions, and discussions are very welcome.
+Feel free to open an issue or submit a PR.
+
+## Development Notes
+
+The frontend (HTML/CSS) was mostly developed with AI assistance to speed up UI implementation and iteration.
+
+All backend functionality—including request handling, authentication, validation, CLI integration, and security-related logic—is implemented and reviewed manually. AI-generated frontend code is also reviewed and integrated before use.
 
 ## License
 
-MIT License
+MIT
