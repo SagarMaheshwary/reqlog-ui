@@ -23,12 +23,12 @@ type CMDArgs struct {
 	Service     string
 	Source      string
 	Output      string
+	Fields      string
+	Verbose     bool
 }
 
 func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*CMDArgs, error) {
-	recursive := c.DefaultQuery("recursive", "true") != "false"
-
-	service, err := validateService(c.Query("service"))
+	service, err := validateIdentifierList(c.Query("service"), "service")
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +66,11 @@ func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*
 		output = "pretty"
 	}
 
+	fields, err := validateIdentifierList(c.Query("fields"), "fields")
+	if err != nil {
+		return nil, err
+	}
+
 	return &CMDArgs{
 		SearchValue: validateQuery(c.Query("q")),
 		Dir:         dir,
@@ -77,12 +82,14 @@ func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*
 		Latest:    parseBool(c.Query("latest")),
 		Key:       key,
 		Since:     since,
-		Recursive: recursive,
+		Recursive: parseBool(c.Query("recursive")),
 		Service:   service,
 		Source:    source,
 		Format:    format,
 		Output:    output,
 		Context:   validateLimit(c.DefaultQuery("context", "0"), 0, maxLines),
+		Fields:    fields,
+		Verbose:   parseBool(c.Query("verbose")),
 	}, nil
 }
 
@@ -107,8 +114,8 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	if p.Since != "" {
 		args = append(args, "--since", p.Since)
 	}
-	if !p.Recursive {
-		args = append(args, "--recursive=false")
+	if p.Recursive {
+		args = append(args, "--recursive")
 	}
 	if p.Service != "" {
 		args = append(args, "--service", p.Service)
@@ -127,6 +134,12 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	}
 	if p.Context > 0 {
 		args = append(args, "--context", strconv.Itoa(p.Context))
+	}
+	if p.Fields != "" {
+		args = append(args, "--fields", p.Fields)
+	}
+	if p.Verbose {
+		args = append(args, "--verbose")
 	}
 
 	// Search value goes last.

@@ -229,9 +229,13 @@
         justify-content: space-between;
         padding: 5px 0;
       }
+
       .toggle-label {
-        font-size: 0.82rem;
-        color: var(--text);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--text-dim);
       }
 
       /* pill toggle */
@@ -803,6 +807,66 @@
         content: "✓ ";
         font-size: 0.7rem;
       }
+
+      /* ── label info icon + tooltip (CSS-only, no JS) ─────────────────────── */
+      .label-info {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 13px;
+        height: 13px;
+        margin-left: 5px;
+        border-radius: 50%;
+        border: 1px solid var(--text-dim);
+        color: var(--text-dim);
+        font-size: 0.62rem;
+        font-weight: 700;
+        font-family: var(--font-ui);
+        font-style: normal;
+        text-transform: none;
+        letter-spacing: 0;
+        cursor: help;
+        vertical-align: middle;
+      }
+      .label-info::before {
+        content: "i";
+      }
+
+      /* 
+        Tooltip is rendered via JS into a fixed-position element appended to
+        <body>, NOT as a ::after pseudo-element. This avoids the sidebar's
+        overflow-y:auto from including the tooltip in its scrollable content
+        box (which is what caused the phantom scrollbar).
+      */
+      #tooltip-portal {
+        position: fixed;
+        max-width: 200px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        line-height: 1.4;
+        padding: 7px 9px;
+        border-radius: 5px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(3px);
+        transition:
+          opacity 0.12s,
+          transform 0.12s;
+        pointer-events: none;
+        z-index: 500;
+      }
+      #tooltip-portal.visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
     </style>
   </head>
   <body>
@@ -833,11 +897,23 @@
         <div class="sidebar-section"><span>Query</span></div>
 
         <div class="field-group">
-          <label>Search key</label>
+          <label
+            >Search key<span
+              class="label-info"
+              tabindex="0"
+              data-tip="field key to match (e.g. request_id, trace_id, event_key)"
+            ></span
+          ></label>
           <input id="opt-key" type="text" placeholder="request_id, trace_id…" />
         </div>
         <div class="field-group">
-          <label>Format</label>
+          <label
+            >Format<span
+              class="label-info"
+              tabindex="0"
+              data-tip="log parsing format ('auto', 'json', or 'text')"
+            ></span
+          ></label>
           <select id="opt-format">
             <option value="auto">auto</option>
             <option value="text">text</option>
@@ -845,7 +921,13 @@
           </select>
         </div>
         <div class="field-group">
-          <label>Output</label>
+          <label
+            >Output<span
+              class="label-info"
+              tabindex="0"
+              data-tip="result output format ('pretty' or 'json')"
+            ></span
+          ></label>
           <select id="opt-output">
             <option value="pretty">pretty</option>
             <option value="json">json</option>
@@ -855,7 +937,13 @@
         <div class="sidebar-section"><span>Time</span></div>
 
         <div class="field-group">
-          <label>Since</label>
+          <label
+            >Since<span
+              class="label-info"
+              tabindex="0"
+              data-tip="include logs newer than: duration (5m, 1h), RFC3339, YYYY-MM-DD, or Unix timestamp"
+            ></span
+          ></label>
           <input
             id="opt-since"
             type="text"
@@ -866,20 +954,38 @@
         <div class="sidebar-section"><span>Source</span></div>
 
         <div class="field-group">
-          <label>Source</label>
+          <label
+            >Source<span
+              class="label-info"
+              tabindex="0"
+              data-tip="log source ('file' or 'docker')"
+            ></span
+          ></label>
           <select id="opt-source">
             <option value="file">file</option>
             <option value="docker">docker</option>
           </select>
         </div>
         <div class="field-group" id="field-dir">
-          <label>Directory</label>
+          <label
+            >Directory<span
+              class="label-info"
+              tabindex="0"
+              data-tip="directory to search for log files"
+            ></span
+          ></label>
           <select id="opt-dir">
             <option value="">loading…</option>
           </select>
         </div>
         <div class="field-group">
-          <label>Services</label>
+          <label
+            >Services<span
+              class="label-info"
+              tabindex="0"
+              data-tip="limit search to selected services"
+            ></span
+          ></label>
           <div class="multiselect" id="ms-service">
             <div class="ms-trigger" id="ms-trigger">
               <span class="ms-label">All</span>
@@ -903,11 +1009,23 @@
         <div class="sidebar-section"><span>Results</span></div>
 
         <div class="field-group">
-          <label>Limit</label>
+          <label
+            >Limit<span
+              class="label-info"
+              tabindex="0"
+              data-tip="maximum number of results"
+            ></span
+          ></label>
           <input id="opt-limit" type="number" min="1" value="25" />
         </div>
         <div class="toggle-row">
-          <span class="toggle-label">Latest</span>
+          <span class="toggle-label"
+            >Latest<span
+              class="label-info"
+              tabindex="0"
+              data-tip="return the newest N matches across all sources"
+            ></span
+          ></span>
           <label class="toggle"
             ><input type="checkbox" id="opt-latest" /><span
               class="slider"
@@ -915,14 +1033,52 @@
           ></label>
         </div>
         <div class="field-group">
-          <label>Context Lines</label>
+          <label
+            >Context Lines<span
+              class="label-info"
+              tabindex="0"
+              data-tip="include N lines before and after each match"
+            ></span
+          ></label>
           <input id="opt-context" type="number" min="0" value="0" />
+        </div>
+
+        <div class="field-group">
+          <label
+            >Fields<span
+              class="label-info"
+              tabindex="0"
+              data-tip="return only selected fields (e.g. request_id,path,status)"
+            ></span
+          ></label>
+          <input id="opt-fields" type="text" placeholder="(comma-separated)" />
+        </div>
+
+        <div class="toggle-row">
+          <span class="toggle-label"
+            >Verbose<span
+              class="label-info"
+              tabindex="0"
+              data-tip="include warnings and scan errors"
+            ></span
+          ></span>
+          <label class="toggle"
+            ><input type="checkbox" id="opt-verbose" /><span
+              class="slider"
+            ></span
+          ></label>
         </div>
 
         <div class="sidebar-section"><span>Options</span></div>
 
         <div class="toggle-row">
-          <span class="toggle-label">Ignore case</span>
+          <span class="toggle-label"
+            >Ignore case<span
+              class="label-info"
+              tabindex="0"
+              data-tip="perform a case-insensitive search"
+            ></span
+          ></span>
           <label class="toggle"
             ><input type="checkbox" id="opt-ignore-case" /><span
               class="slider"
@@ -930,7 +1086,13 @@
           ></label>
         </div>
         <div class="toggle-row">
-          <span class="toggle-label">Recursive</span>
+          <span class="toggle-label"
+            >Recursive<span
+              class="label-info"
+              tabindex="0"
+              data-tip="search directories recursively"
+            ></span
+          ></span>
           <label class="toggle"
             ><input type="checkbox" id="opt-recursive" /><span
               class="slider"
@@ -941,7 +1103,13 @@
         <div class="sidebar-section"><span>Live</span></div>
 
         <div class="toggle-row">
-          <span class="toggle-label">Auto-scroll</span>
+          <span class="toggle-label"
+            >Auto-scroll<span
+              class="label-info"
+              tabindex="0"
+              data-tip="automatically scroll new log entries"
+            ></span
+          ></span>
           <label class="toggle"
             ><input type="checkbox" id="opt-autoscroll" checked /><span
               class="slider"
@@ -969,6 +1137,7 @@
         <button id="scroll-btn" title="Scroll to bottom">↓</button>
       </main>
     </div>
+    <div id="tooltip-portal"></div>
 
     <script>
       // ── ANSI → HTML parser ───────────────────────────────────────────────────
@@ -1188,6 +1357,8 @@
         { id: "opt-ignore-case", qs: "ignore_case", type: "checkbox" },
         { id: "opt-json", qs: "json", type: "checkbox" },
         { id: "opt-recursive", qs: "recursive", type: "checkbox" },
+        { id: "opt-verbose", qs: "verbose", type: "checkbox" },
+        { id: "opt-fields", qs: "fields", type: "text" },
       ];
 
       function loadFromQS() {
@@ -1592,6 +1763,48 @@
         else loadContainers();
       }
 
+      // ── Tooltip portal ─────────────────────────────────────────────────────
+      // Renders tooltips into a fixed-position element appended to <body> so they
+      // never affect any scrollable ancestor's content box (avoids phantom
+      // scrollbars inside the sidebar).
+      const tooltipPortal = document.getElementById("tooltip-portal");
+
+      function positionTooltip(target) {
+        const rect = target.getBoundingClientRect();
+        tooltipPortal.style.left = "0px";
+        tooltipPortal.style.top = "0px";
+        tooltipPortal.textContent = target.dataset.tip;
+        tooltipPortal.classList.add("visible");
+
+        // Measure after content is set
+        const tw = tooltipPortal.offsetWidth;
+        const th = tooltipPortal.offsetHeight;
+
+        let left = rect.left + rect.width / 2 - tw / 2;
+        let top = rect.top - th - 8;
+
+        // Clamp horizontally to viewport
+        left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+
+        // If there's no room above, show below instead
+        if (top < 8) top = rect.bottom + 8;
+
+        tooltipPortal.style.left = left + "px";
+        tooltipPortal.style.top = top + "px";
+      }
+
+      function hideTooltip() {
+        tooltipPortal.classList.remove("visible");
+      }
+
+      document.querySelectorAll(".label-info").forEach((el) => {
+        el.addEventListener("mouseenter", () => positionTooltip(el));
+        el.addEventListener("mouseleave", hideTooltip);
+        el.addEventListener("focus", () => positionTooltip(el));
+        el.addEventListener("blur", hideTooltip);
+      });
+
+      // ── Events ───────────────────────────────────────────────────────────────
       document.getElementById("opt-source").addEventListener("change", () => {
         msSelected.clear();
         updateSourceView();
@@ -1602,7 +1815,6 @@
         loadFiles(e.target.value);
       });
 
-      // ── Events ───────────────────────────────────────────────────────────────
       btnRun.addEventListener("click", runSearch);
       btnStream.addEventListener("click", startStream);
       btnStop.addEventListener("click", () => stopStream(true));
