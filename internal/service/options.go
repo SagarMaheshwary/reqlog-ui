@@ -21,7 +21,7 @@ type OptionsServiceOpts struct {
 	Config *config.Reqlog
 }
 
-type FileOption struct {
+type Option struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
 }
@@ -41,20 +41,20 @@ func (s *OptionsService) ListDirectories() ([]string, error) {
 	return dirs, nil
 }
 
-func (s *OptionsService) ListFiles(directory string, recursive bool) ([]FileOption, error) {
+func (s *OptionsService) ListFiles(directory string, recursive bool) ([]Option, error) {
 	rootPath, ok := s.config.AllowedDirectories[directory]
 	if !ok {
 		return nil, fmt.Errorf("directory not allowed: %s", directory)
 	}
 
-	var files []FileOption
+	var files []Option
 
 	appendFile := func(label, name string) {
 		if !strings.HasSuffix(name, ".log") {
 			return
 		}
 
-		files = append(files, FileOption{
+		files = append(files, Option{
 			Label: strings.TrimSuffix(label, ".log"),
 			Value: strings.TrimSuffix(name, ".log"),
 		})
@@ -96,15 +96,36 @@ func (s *OptionsService) ListFiles(directory string, recursive bool) ([]FileOpti
 	return files, nil
 }
 
-func (s *OptionsService) ListContainers() ([]string, error) {
+func (s *OptionsService) ListContainers() ([]Option, error) {
+	var containers []string
+
 	switch s.config.DockerServicesMode {
 	case "auto":
-		return s.listDockerContainers()
+		c, err := s.listDockerContainers()
+		if err != nil {
+			return nil, err
+		}
+		containers = c
+
 	case "manual":
-		return s.config.DockerServices, nil
+		containers = s.config.DockerServices
+
 	default:
-		return nil, fmt.Errorf("invalid docker services mode: %s", s.config.DockerServicesMode)
+		return nil, fmt.Errorf(
+			"invalid docker services mode: %s",
+			s.config.DockerServicesMode,
+		)
 	}
+
+	options := make([]Option, 0, len(containers))
+	for _, c := range containers {
+		options = append(options, Option{
+			Label: c,
+			Value: c,
+		})
+	}
+
+	return options, nil
 }
 
 func (s *OptionsService) listDockerContainers() ([]string, error) {
