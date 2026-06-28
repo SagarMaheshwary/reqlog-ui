@@ -2,6 +2,7 @@ package reqlog
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 )
 
 var keyPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-var servicePattern = regexp.MustCompile(`^[a-zA-Z0-9\-\*,]+$`)
+var identifierListPattern = regexp.MustCompile(`^[a-zA-Z0-9\-\_\*,]+$`)
 
 func validateDir(dir string, allowedDirs map[string]string) (string, error) {
 	if dir == "" {
@@ -93,12 +94,12 @@ func validateKey(k string) (string, error) {
 	return k, nil
 }
 
-func validateService(s string) (string, error) {
+func validateIdentifierList(s string, field string) (string, error) {
 	if s == "" {
 		return "", nil
 	}
-	if !servicePattern.MatchString(s) {
-		return "", errors.New("invalid service format")
+	if !identifierListPattern.MatchString(s) {
+		return "", fmt.Errorf("invalid %s format", field)
 	}
 	return s, nil
 }

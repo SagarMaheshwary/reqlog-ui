@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/sagarmaheshwary/reqlog-ui/internal/config"
@@ -18,6 +19,11 @@ type OptionsService struct {
 type OptionsServiceOpts struct {
 	Logger logger.Logger
 	Config *config.Reqlog
+}
+
+type FileOption struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 func NewOptionsService(opts *OptionsServiceOpts) *OptionsService {
@@ -35,30 +41,56 @@ func (s *OptionsService) ListDirectories() ([]string, error) {
 	return dirs, nil
 }
 
-func (s *OptionsService) ListFiles(directory string) ([]string, error) {
-	path, ok := s.config.AllowedDirectories[directory]
+func (s *OptionsService) ListFiles(directory string, recursive bool) ([]FileOption, error) {
+	rootPath, ok := s.config.AllowedDirectories[directory]
 	if !ok {
-		return nil, fmt.Errorf("directory not allowed: %s", path)
+		return nil, fmt.Errorf("directory not allowed: %s", directory)
 	}
 
-	files := make([]string, 0)
+	var files []FileOption
 
-	dirFiles, err := os.ReadDir(path)
+	appendFile := func(label, name string) {
+		if !strings.HasSuffix(name, ".log") {
+			return
+		}
+
+		files = append(files, FileOption{
+			Label: strings.TrimSuffix(label, ".log"),
+			Value: strings.TrimSuffix(name, ".log"),
+		})
+	}
+
+	if !recursive {
+		entries, err := os.ReadDir(rootPath)
+		if err != nil {
+			return nil, s.directoryError(directory, err)
+		}
+
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			appendFile(entry.Name(), entry.Name())
+		}
+
+		return files, nil
+	}
+
+	err := filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+
+		rel, err := filepath.Rel(rootPath, path)
+		if err != nil {
+			return nil
+		}
+
+		appendFile(rel, d.Name())
+		return nil
+	})
 	if err != nil {
-		s.logger.Error("failed to list files in directory", logger.Field{Key: "directory", Value: directory}, logger.Field{Key: "error", Value: err})
-		return nil, fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	for _, file := range dirFiles {
-		if file.IsDir() {
-			continue
-		}
-
-		if !strings.HasSuffix(file.Name(), ".log") {
-			continue
-		}
-		logFile, _ := strings.CutSuffix(file.Name(), ".log")
-		files = append(files, logFile)
+		return nil, s.directoryError(directory, err)
 	}
 
 	return files, nil
@@ -95,4 +127,14 @@ func (s *OptionsService) listDockerContainers() ([]string, error) {
 	}
 
 	return containers, nil
+}
+
+func (s *OptionsService) directoryError(directory string, err error) error {
+	s.logger.Error(
+		"failed to list files in directory",
+		logger.Field{Key: "directory", Value: directory},
+		logger.Field{Key: "error", Value: err},
+	)
+
+	return fmt.Errorf("failed to read directory: %w", err)
 }
