@@ -1593,7 +1593,9 @@
         const search = (
           document.getElementById("ms-search").value || ""
         ).toLowerCase();
-        const visible = items.filter((i) => i.toLowerCase().includes(search));
+        const visible = items.filter((i) =>
+          i.value.toLowerCase().includes(search),
+        );
         list.innerHTML = "";
 
         // "All" option
@@ -1606,9 +1608,10 @@
 
         for (const item of visible) {
           const el = document.createElement("div");
-          el.className = "ms-item" + (msSelected.has(item) ? " selected" : "");
-          el.textContent = item;
-          el.dataset.value = item;
+          el.className =
+            "ms-item" + (msSelected.has(item.value) ? " selected" : "");
+          el.textContent = item.label;
+          el.dataset.value = item.value;
           list.appendChild(el);
         }
       }
@@ -1693,18 +1696,24 @@
           sel.innerHTML = dirs
             .map((d) => `<option value="${d}">${d}</option>`)
             .join("");
+
           // restore from QS if possible
-          const qsDir = new URLSearchParams(window.location.search).get("dir");
-          if (qsDir && [...sel.options].some((o) => o.value === qsDir))
+          const searchParams = new URLSearchParams(window.location.search);
+          const qsDir = searchParams.get("dir");
+          const recursive = searchParams.get("recursive");
+          if (qsDir && [...sel.options].some((o) => o.value === qsDir)) {
             sel.value = qsDir;
-          else if (dirs.length) sel.value = dirs[0];
-          await loadFiles(sel.value);
+          } else if (dirs.length) {
+            sel.value = dirs[0];
+          }
+
+          await loadFiles(sel.value, recursive);
         } catch {
           sel.innerHTML = '<option value="./logs">./logs</option>';
         }
       }
 
-      async function loadFiles(dir) {
+      async function loadFiles(dir, recursive) {
         if (!dir) {
           msLoad([]);
           return;
@@ -1712,7 +1721,10 @@
 
         try {
           const res = await fetch(
-            "/api/options/files?directory=" + encodeURIComponent(dir),
+            "/api/options/files?directory=" +
+              encodeURIComponent(dir) +
+              "&recursive=" +
+              recursive,
           );
           const data = await res.json();
           const files = data.files || data || [];
@@ -1812,8 +1824,17 @@
 
       document.getElementById("opt-dir").addEventListener("change", (e) => {
         msSelected.clear();
-        loadFiles(e.target.value);
+        loadFiles(
+          e.target.value,
+          document.getElementById("opt-recursive").checked,
+        );
       });
+
+      document
+        .getElementById("opt-recursive")
+        .addEventListener("change", (e) => {
+          loadFiles(document.getElementById("opt-dir").value, e.target.checked);
+        });
 
       btnRun.addEventListener("click", runSearch);
       btnStream.addEventListener("click", startStream);

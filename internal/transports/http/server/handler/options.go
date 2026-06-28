@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/logger"
+	"github.com/sagarmaheshwary/reqlog-ui/internal/reqlog"
 	"github.com/sagarmaheshwary/reqlog-ui/internal/service"
 )
 
@@ -35,7 +36,8 @@ func (h *OptionsHandler) ListDirectories(c *gin.Context) {
 
 func (h *OptionsHandler) ListFiles(c *gin.Context) {
 	directory := c.Query("directory")
-	files, err := h.optionsService.ListFiles(directory)
+	recursive := reqlog.ParseBool(c.Query("recursive"))
+	files, err := h.optionsService.ListFiles(directory, recursive)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "failed to list files"})
 		return

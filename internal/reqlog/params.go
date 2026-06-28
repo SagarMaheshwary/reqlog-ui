@@ -74,22 +74,22 @@ func ParseParams(c *gin.Context, maxLines int, allowedDirs map[string]string) (*
 	return &CMDArgs{
 		SearchValue: validateQuery(c.Query("q")),
 		Dir:         dir,
-		IgnoreCase:  parseBool(c.Query("ignore_case")),
+		IgnoreCase:  ParseBool(c.Query("ignore_case")),
 		Limit: validateLimit(c.DefaultQuery("limit", strconv.Itoa(defaultLimit)),
 			defaultLimit,
 			maxLines,
 		),
-		Latest:    parseBool(c.Query("latest")),
+		Latest:    ParseBool(c.Query("latest")),
 		Key:       key,
 		Since:     since,
-		Recursive: parseBool(c.Query("recursive")),
+		Recursive: ParseBool(c.Query("recursive")),
 		Service:   service,
 		Source:    source,
 		Format:    format,
 		Output:    output,
 		Context:   validateLimit(c.DefaultQuery("context", "0"), 0, maxLines),
 		Fields:    fields,
-		Verbose:   parseBool(c.Query("verbose")),
+		Verbose:   ParseBool(c.Query("verbose")),
 	}, nil
 }
 
@@ -150,6 +150,6 @@ func BuildArgs(p *CMDArgs, follow bool) []string {
 	return args
 }
 
-func parseBool(v string) bool {
+func ParseBool(v string) bool {
 	return v == "true" || v == "1"
 }
