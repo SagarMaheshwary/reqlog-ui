@@ -1,0 +1,139 @@
+version: 2
+
+project_name: reqlog-ui
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: reqlog-ui
+    main: ./cmd/reqlog-ui
+    binary: reqlog-ui
+
+    env:
+      - CGO_ENABLED=0
+
+    goos:
+      - linux
+      - windows
+      - darwin
+
+    goarch:
+      - amd64
+      - arm64
+
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: archives
+
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+
+    files:
+      - LICENSE
+      - README.md
+
+    formats:
+      - tar.gz
+
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  prerelease: auto
+
+nfpms:
+  - id: packages
+
+    package_name: reqlog-ui
+
+    homepage: https://github.com/sagarmaheshwary/reqlog-ui
+
+    maintainer: Sagar Maheshwary <sagarmaheshwary31@gmail.com>
+
+    description: |
+      A lightweight web UI for reqlog — search and trace logs directly from your browser.
+
+    license: MIT
+
+    formats:
+      - deb
+      - rpm
+
+    bindir: /usr/bin
+
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/reqlog-ui/LICENSE
+
+      - src: README.md
+        dst: /usr/share/doc/reqlog-ui/README.md
+
+brews:
+  - name: reqlog-ui
+
+    repository:
+      owner: sagarmaheshwary
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+
+    directory: Formula
+
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+
+    homepage: https://github.com/sagarmaheshwary/reqlog-ui
+
+    description: A lightweight web UI for reqlog — search and trace logs directly from your browser.
+
+    license: MIT
+
+    install: |
+      bin.install "reqlog-ui"
+
+    test: |
+      system "#{bin}/reqlog-ui", "--version"
+
+scoops:
+  - name: reqlog-ui
+
+    repository:
+      owner: sagarmaheshwary
+      name: scoop-bucket
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+
+    directory: bucket
+
+    commit_author:
+      name: github-actions[bot]
+      email: 41898282+github-actions[bot]@users.noreply.github.com
+
+    homepage: https://github.com/sagarmaheshwary/reqlog-ui
+
+    description: A lightweight web UI for reqlog — search and trace logs directly from your browser.
+
+    license: MIT
+
+dockers:
+  - image_templates:
+      - "ghcr.io/sagarmaheshwary/reqlog-ui:{{ .Version }}"
+      - "ghcr.io/sagarmaheshwary/reqlog-ui:latest"
+
+    dockerfile: Dockerfile
+
+    use: buildx
+
+    build_flag_templates:
+      - "--build-arg=REQLOG_VERSION={{ .Env.REQLOG_VERSION }}"
+      - "--build-arg=VERSION={{ .Version }}"

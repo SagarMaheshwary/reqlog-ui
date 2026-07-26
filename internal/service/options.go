@@ -132,7 +132,7 @@ func (s *OptionsService) listDockerContainers() ([]string, error) {
 	cmd := exec.Command("docker", "ps", "--format", "{{.Names}}")
 	out, err := cmd.Output()
 	if err != nil {
-		s.logger.Error("failed to list docker containers", logger.Field{Key: "error", Value: err})
+		s.logger.Error("failed to list docker containers", logger.Field{Key: "error", Value: err.Error()})
 		return nil, fmt.Errorf("failed to list docker containers: %w", err)
 	}
 
@@ -154,7 +154,7 @@ func (s *OptionsService) directoryError(directory string, err error) error {
 	s.logger.Error(
 		"failed to list files in directory",
 		logger.Field{Key: "directory", Value: directory},
-		logger.Field{Key: "error", Value: err},
+		logger.Field{Key: "error", Value: err.Error()},
 	)
 
 	return fmt.Errorf("failed to read directory: %w", err)
