@@ -15,7 +15,7 @@ FROM debian:bookworm-slim AS production
 ARG VERSION
 
 LABEL org.opencontainers.image.title="reqlog-ui"
-LABEL org.opencontainers.image.description="Web UI for reqlog"
+LABEL org.opencontainers.image.description="A lightweight web UI for reqlog — search and trace logs directly from your browser."
 LABEL org.opencontainers.image.source="https://github.com/sagarmaheshwary/reqlog-ui"
 LABEL org.opencontainers.image.url="https://github.com/sagarmaheshwary/reqlog-ui"
 LABEL org.opencontainers.image.documentation="https://github.com/sagarmaheshwary/reqlog-ui/blob/main/README.md"
