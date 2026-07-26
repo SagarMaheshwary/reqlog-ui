@@ -64,7 +64,7 @@ func NewConfigWithOptions(opts LoaderOptions) (*Config, error) {
 
 	cfg := &Config{
 		HTTPServer: &HTTPServer{
-			URL:             getEnv("HTTP_SERVER_URL", "localhost:4000"),
+			URL:             getEnv("HTTP_SERVER_URL", "0.0.0.0:4000"),
 			ShutdownTimeout: getEnvDuration("HTTP_SERVER_SHUTDOWN_TIMEOUT", 5*time.Second),
 			GinMode:         getEnv("HTTP_GIN_MODE", "release"),
 			Logger:          getEnvBool("HTTP_LOGGER_ENABLED", false),
